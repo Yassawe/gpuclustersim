@@ -12,8 +12,6 @@ if sys.platform == "win32":
 import gpuclustersim._C  # type: ignore[misc]
 import gpuclustersim.sim
 
-_C.init()
-
 
 torch.utils.rename_privateuse1_backend("gpuclustersim")
 torch._register_device_module("gpuclustersim", gpuclustersim.sim)
