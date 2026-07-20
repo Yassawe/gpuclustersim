@@ -1,10 +1,5 @@
 #include "native/Minimal.h"
 
-#include <ATen/native/CPUFallback.h>
-#include <ATen/native/DispatchStub.h>
-
-#include <torch/library.h>
-
 
 #include <iostream>
 
@@ -12,7 +7,6 @@ namespace at::gpuclustersim {
 
 namespace {
 
-// LITERALINCLUDE START: EMPTY.MEMORY_FORMAT WRAPPER
 at::Tensor wrapper_empty_memory_format(
     c10::IntArrayRef size,
     std::optional<c10::ScalarType> dtype_opt,
@@ -28,7 +22,6 @@ at::Tensor wrapper_empty_memory_format(
       pin_memory_opt,
       memory_format_opt);
 }
-// LITERALINCLUDE END: EMPTY.MEMORY_FORMAT WRAPPER
 
 at::Tensor wrapper_empty_strided(
     c10::IntArrayRef size,
@@ -108,17 +101,14 @@ bool wrapper_has_compatible_shallow_copy_type(const at::Tensor& self, const at::
   return true;
 }
 
-// LITERALINCLUDE START: FALLBACK WRAPPER
-void wrapper_cpu_fallback(
+void wrapper_meta_fallback(
     const c10::OperatorHandle& op,
     torch::jit::Stack* stack) {
-  at::native::gpuclustersim::cpu_fallback(op, stack);
+  at::native::gpuclustersim::meta_fallback(op, stack);
 }
-// LITERALINCLUDE END: FALLBACK WRAPPER
 
 } // namespace
 
-// LITERALINCLUDE START: TORCH_LIBRARY_IMPL DEFAULT
 TORCH_LIBRARY_IMPL(aten, PrivateUse1, m) {
   m.impl("empty.memory_format", wrapper_empty_memory_format);
   m.impl("empty_strided", wrapper_empty_strided);
@@ -138,21 +128,23 @@ TORCH_LIBRARY_IMPL(aten, PrivateUse1, m) {
       wrapper_set_source_Storage_storage_offsetset_);
   m.impl("view", wrapper_view);
 }
-// LITERALINCLUDE END: TORCH_LIBRARY_IMPL DEFAULT
 
-// LITERALINCLUDE START: FALLBACK GLOBAL
+
+
 TORCH_LIBRARY_IMPL(_, PrivateUse1, m) {
   m.fallback(
-      torch::CppFunction::makeFromBoxedFunction<&wrapper_cpu_fallback>());
+      torch::CppFunction::makeFromBoxedFunction<&wrapper_meta_fallback>());
 }
-// LITERALINCLUDE END: FALLBACK GLOBAL
 
-// LITERALINCLUDE START: FALLBACK SINGLE
-TORCH_LIBRARY_IMPL(aten, PrivateUse1, m) {
-  m.impl(
-      "sub.Tensor",
-      torch::CppFunction::makeFromBoxedFunction<&wrapper_cpu_fallback>());
-}
-// LITERALINCLUDE END: FALLBACK SINGLE
+
+
+// redundant??
+
+// TORCH_LIBRARY_IMPL(aten, PrivateUse1, m) {
+//   m.impl(
+//       "sub.Tensor",
+//       torch::CppFunction::makeFromBoxedFunction<&wrapper_meta_fallback>());
+// }
+
 
 } // namespace at::gpuclustersim

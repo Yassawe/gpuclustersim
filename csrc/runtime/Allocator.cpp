@@ -3,21 +3,26 @@
 
 //TODO: track allocated and peak memory for each device to output memory usage statistics
 
-namespace gpuclustersim {
+namespace c10::gpuclustersim {
 
-// cost models infer time from shape, the actual data can be dummy 1 byte, as long as nothing dereferences it
+// cost models infer time from shape, the actual data can be dummy 1 byte, as long as nothing dereferences it. 
+// extreme caution so that nothing dereferences it, otherwise segfault and crash
 
 struct DummyAllocator : at::Allocator {
-  at::DataPtr allocate(size_t nbytes) const override {
-    void* ptr = std::malloc(1);
-    return at::DataPtr(ptr, ptr, &raw_deallocate, 
+  at::DataPtr allocate(size_t nbytes) override {
+    void* ptr = std::malloc(nbytes);
+    return at::DataPtr(ptr, ptr, &raw_delete, 
       at::Device(at::kPrivateUse1));
   }
 
-private:
-  static void raw_deallocate(void* ptr) {
-    std::free(ptr);
+  static void raw_delete(void* ptr) {
+    free(ptr);
   }
+  
+  void copy_data(void* dest, const void* src, std::size_t count) const override {
+    memcpy(dest, src, count);
+  }
+
 };
 
 

@@ -2,3 +2,8 @@
 .vscode/
 build/
 .env*
+
+*.so
+gpuclustersim/lib/
+__pycache__
+

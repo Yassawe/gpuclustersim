@@ -1,6 +1,8 @@
 #include "Minimal.h"
 
+#include <ATen/native/CPUFallback.h>
 #include <unordered_set>
+#include <iostream>  
 
 namespace at::native::gpuclustersim {
 
@@ -110,13 +112,8 @@ at::Tensor _copy_from_and_resize(
   return dst;
 }
 
-at::Tensor view(const at::Tensor& self, c10::SymIntArrayRef size) {
-  return at::native::view(self, C10_AS_INTARRAYREF_SLOW(size));
-}
-
-
 at::Scalar _local_scalar_dense(const at::Tensor& self) {
-  // returning dummy scalar
+  // returning dummy scalar, explicitly gonna break data dependent paths
   return at::Scalar(0.0);
 }
 
@@ -141,60 +138,13 @@ at::Tensor& set_source_Storage_storage_offset_(
 
 // FALLBACK
 
-void cpu_fallback(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
-  const auto& schema = op.schema();
+void meta_fallback(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
+  // vibecoded, check for correctness later
 
-  // 1. Pop original inputs from the stack
-  auto inputs = torch::jit::pop(*stack, schema.arguments().size());
-
-  // 2. Create META versions of inputs (shape-only, no data)
-  std::vector<c10::IValue> meta_inputs;
-  for (auto& iv : inputs) {
-  if (iv.isTensor()) {
-    auto t = iv.toTensor();
-    // Create a meta tensor with SAME shape but NO storage
-    auto meta_t = at::empty(t.sizes(), t.options().device(at::kMeta));
-    meta_inputs.push_back(meta_t);
-  } else {
-    meta_inputs.push_back(iv);  // Non-tensor args pass through
-  }
-  }
-
-  // 3. Run the op on META tensors
-  // This calls PyTorch's built-in meta kernel for this op
-  // Meta kernels only compute output shapes, never touch data
-  torch::jit::push(*stack, meta_inputs);
-  op.redispatch(c10::DispatchKey::Meta, stack);
-  auto meta_results = torch::jit::pop(*stack, schema.returns().size());
-
-  // 4. Create PrivateUse1 outputs with meta-inferred shapes
-  std::vector<c10::IValue> results;
-  for (auto& iv : meta_results) {
-  if (iv.isTensor()) {
-    auto meta_t = iv.toTensor();
-    // Create your device tensor with correct shape, 1-byte storage
-    auto out = at::empty(meta_t.sizes(), 
-      meta_t.options().device(at::kPrivateUse1));
-    results.push_back(out);
-  } else {
-    results.push_back(iv);  // Non-tensor returns pass through
-  }
-  }
-
-  // TODO: call cost_model here with opname and shapes
-
-  std::cout << "[GCS] Fallback op: " << op.schema().name() 
-      << " | shapes: ";
-  for (auto& iv : inputs) {
-  if (iv.isTensor()) {
-    auto t = iv.toTensor();
-    std::cout << "[" << t.sizes() << "] ";
-  }
-  }
-  std::cout << std::endl;
-
-  torch::jit::push(*stack, results);
+  std::cout << "[GCS] Fallback: " << op.schema().name() << std::endl;
+    
+    // Just use CPU fallback - it works, it's correct, it's slow
+  at::native::cpu_fallback(op, stack);
 }
-
 
 }
