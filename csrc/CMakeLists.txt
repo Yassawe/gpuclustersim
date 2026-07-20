@@ -1,4 +1,4 @@
-set(LIBRARY_NAME gpuclustersim)
+set(LIBRARY_NAME gpuclustersim_core)
 
 file(GLOB_RECURSE SOURCE_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"

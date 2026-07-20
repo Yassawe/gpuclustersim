@@ -8,7 +8,7 @@ set(SOURCE_FILES
 add_library(${LIBRARY_NAME} SHARED ${SOURCE_FILES})
 
 # Link the core library (built in the outer csrc/) and PyTorch.
-target_link_libraries(${LIBRARY_NAME} PRIVATE torch_python_library gpuclustersim)
+target_link_libraries(${LIBRARY_NAME} PRIVATE torch_python_library gpuclustersim_core)
 
 # Windows needs explicit Python libraries; macOS uses dynamic lookup.
 if(WIN32)

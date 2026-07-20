@@ -15,7 +15,7 @@ struct DummyHostAllocator : at::HostAllocator {
     at::DataPtr allocate(size_t nbytes) override {
         void* data = nullptr;
         if (nbytes > 0) {
-            data = malloc(nbytes);
+            data = malloc(nbytes); // change here
         }
         return {data, data, &ReportAndDelete, at::Device(at::kCPU)};
     }

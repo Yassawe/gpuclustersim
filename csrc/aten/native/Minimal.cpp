@@ -143,7 +143,7 @@ void meta_fallback(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
 
   std::cout << "[GCS] Fallback: " << op.schema().name() << std::endl;
     
-    // Just use CPU fallback - it works, it's correct, it's slow
+  // CPU fallback with real mem allocation for now
   at::native::cpu_fallback(op, stack);
 }
 
