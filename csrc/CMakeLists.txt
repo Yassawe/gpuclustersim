@@ -8,7 +8,7 @@ add_library(${LIBRARY_NAME} SHARED ${SOURCE_FILES})
 
 target_link_libraries(${LIBRARY_NAME} PRIVATE torch_cpu_library)
 
-target_include_directories(${LIBRARY_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(${LIBRARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 install(TARGETS ${LIBRARY_NAME}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

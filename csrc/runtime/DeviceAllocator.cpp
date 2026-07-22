@@ -10,7 +10,7 @@ namespace c10::gpuclustersim {
 
 struct DummyAllocator : at::Allocator {
   at::DataPtr allocate(size_t nbytes) override {
-    void* ptr = std::malloc(nbytes);
+    void* ptr = std::malloc(nbytes); //change here
     return at::DataPtr(ptr, ptr, &raw_delete, 
       at::Device(at::kPrivateUse1));
   }

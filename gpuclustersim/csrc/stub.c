@@ -1,18 +1,20 @@
 #include <Python.h>
 
+// stub.c is compiled by setup.py separately from other cmake, so needs to include stuff explicitly.
+
 #ifdef _WIN32
-#define GPUCLUSTERSIM_EXPORT __declspec(dllexport)
+#define ENABLE_EXPORT __declspec(dllexport)
 #else
-#define GPUCLUSTERSIM_EXPORT __attribute__((visibility("default")))
+#define ENABLE_EXPORT __attribute__((visibility("default")))
 #endif
 
-extern GPUCLUSTERSIM_EXPORT PyObject* initGPUClusterSimModule(void);
+extern ENABLE_EXPORT PyObject* initGPUClusterSimModule(void);
 
 #ifdef __cplusplus
 extern "C"
 #endif
 
-GPUCLUSTERSIM_EXPORT PyObject* PyInit__C(void);
+ENABLE_EXPORT PyObject* PyInit__C(void);
 
 PyMODINIT_FUNC PyInit__C(void) {
   return initGPUClusterSimModule();

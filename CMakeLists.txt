@@ -36,14 +36,13 @@ include_directories(${TORCH_INCLUDE_DIRS})
 if(DEFINED PYTHON_INCLUDE_DIR)
   include_directories(${PYTHON_INCLUDE_DIR})
 else()
-  # 3. Improved error message
   message(FATAL_ERROR "Cannot find Python directory. Ensure Python development headers are installed.")
 endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-include(${PROJECT_SOURCE_DIR}/cmake/TorchPythonTargets.cmake)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-option(USE_TEST "Build unit tests" OFF)
+include(${PROJECT_SOURCE_DIR}/cmake/TorchPythonTargets.cmake)
 
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/csrc)

@@ -10,7 +10,6 @@ from distutils.command.clean import clean
 from setuptools import Extension, find_packages, setup
 
 
-# Env Variables
 IS_DARWIN = platform.system() == "Darwin"
 IS_WINDOWS = platform.system() == "Windows"
 
@@ -133,7 +132,6 @@ def main():
         ]
     }
 
-    # LITERALINCLUDE START: SETUP
     setup(
         packages=find_packages(),
         package_data=package_data,
@@ -148,7 +146,6 @@ def main():
         #     ],
         # },
     )
-    # LITERALINCLUDE END: SETUP
 
 
 if __name__ == "__main__":

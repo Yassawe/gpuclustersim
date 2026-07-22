@@ -139,12 +139,11 @@ at::Tensor& set_source_Storage_storage_offset_(
 // FALLBACK
 
 void meta_fallback(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
-  // vibecoded, check for correctness later
-
-  std::cout << "[GCS] Fallback: " << op.schema().name() << std::endl;
-    
-  // CPU fallback with real mem allocation for now
-  at::native::cpu_fallback(op, stack);
+    std::cout << "[Simulator] Intercepted: " << op.schema().name() std::endl;
+    at::native::cpu_fallback(op, stack);
 }
 
-}
+
+} //namespace
+
+
