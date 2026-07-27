@@ -7,7 +7,11 @@
 #include <pybind11/pybind11.h>
 #include <torch/csrc/utils/python_numbers.h>
 
-#include "Macros.h"
+#ifdef _WIN32
+#define ENABLE_EXPORT __declspec(dllexport)
+#else
+#define ENABLE_EXPORT __attribute__((visibility("default")))
+#endif
 
 
 static PyObject* _initExtension(PyObject* self, PyObject* noargs) {
@@ -28,8 +32,13 @@ static PyObject* _getDefaultGenerator(PyObject* self, PyObject* arg) {
 
   torch::utils::register_fork_handler_for_device_init(at::kPrivateUse1);
   return THPGenerator_initDefaultGenerator(
+
+      // at::detail::getPrivateUse1Hooks().getDefaultGenerator(idx));
+
       at::globalContext().defaultGenerator(
-          c10::Device(c10::DeviceType::PrivateUse1, idx)));
+          c10::Device(c10::DeviceType::PrivateUse1, idx))
+      
+    );
 
   END_HANDLE_TH_ERRORS
 }

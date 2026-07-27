@@ -8,11 +8,13 @@ namespace c10::gpuclustersim {
 // cost models infer time from shape, the actual data can be dummy 1 byte, as long as nothing dereferences it. 
 // extreme caution so that nothing dereferences it, otherwise segfault and crash
 
+// must be per device
+
 struct DummyAllocator : at::Allocator {
   at::DataPtr allocate(size_t nbytes) override {
-    void* ptr = std::malloc(nbytes); //change here
+    void* ptr = std::malloc(1); //change here
     return at::DataPtr(ptr, ptr, &raw_delete, 
-      at::Device(at::kPrivateUse1));
+      at::Device(at::kPrivateUse1, 0)); // HERE ALLOCATED TO A DEVICE
   }
 
   static void raw_delete(void* ptr) {
@@ -24,7 +26,6 @@ struct DummyAllocator : at::Allocator {
   }
 
 };
-
 
 static DummyAllocator g_allocator;
 

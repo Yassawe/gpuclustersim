@@ -1,11 +1,8 @@
-#include "native/Minimal.h"
-
-
-#include <iostream>
+#include "native/Common.h"
 
 namespace at::gpuclustersim {
 
-namespace {
+namespace { 
 
 at::Tensor wrapper_empty_memory_format(
     c10::IntArrayRef size,
@@ -101,10 +98,10 @@ bool wrapper_has_compatible_shallow_copy_type(const at::Tensor& self, const at::
   return true;
 }
 
-void wrapper_meta_fallback(
+void wrapper_op_interceptor(
     const c10::OperatorHandle& op,
     torch::jit::Stack* stack) {
-  at::native::gpuclustersim::meta_fallback(op, stack);
+  at::native::gpuclustersim::op_interceptor(op, stack);
 }
 
 } // namespace
@@ -131,7 +128,7 @@ TORCH_LIBRARY_IMPL(aten, PrivateUse1, m) {
 
 TORCH_LIBRARY_IMPL(_, PrivateUse1, m) {
   m.fallback(
-      torch::CppFunction::makeFromBoxedFunction<&wrapper_meta_fallback>());
+      torch::CppFunction::makeFromBoxedFunction<&wrapper_op_interceptor>());
 }
 
 } // namespace at::gpuclustersim
