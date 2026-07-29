@@ -25,6 +25,7 @@ struct DummyAllocator : at::Allocator {
     memcpy(dest, src, count);
   }
 
+  
 };
 
 static DummyAllocator g_allocator;
