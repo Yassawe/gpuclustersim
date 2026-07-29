@@ -117,7 +117,7 @@ def main():
             sources=["gpuclustersim/csrc/stub.c"],
             language="c",
             extra_compile_args=extra_compile_args,
-            libraries=["gpuclustersim_bindings"],
+            libraries=["gcs_bindings"],
             library_dirs=[os.path.join(BASE_DIR, "gpuclustersim/lib")],
             extra_link_args=extra_link_args,
         )

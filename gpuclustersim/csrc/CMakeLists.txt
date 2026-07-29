@@ -1,4 +1,4 @@
-set(LIBRARY_NAME gpuclustersim_bindings)
+set(LIBRARY_NAME gcs_bindings)
 
 set(SOURCE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/Module.cpp
@@ -6,7 +6,7 @@ set(SOURCE_FILES
 
 add_library(${LIBRARY_NAME} SHARED ${SOURCE_FILES})
 
-target_link_libraries(${LIBRARY_NAME} PRIVATE torch_python_library gpuclustersim_core)
+target_link_libraries(${LIBRARY_NAME} PRIVATE torch_python_library gcs_torch_backend)
 
 
 if(WIN32)

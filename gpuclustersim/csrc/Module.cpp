@@ -6,12 +6,7 @@
 #include <torch/csrc/utils/pybind.h>
 #include <pybind11/pybind11.h>
 #include <torch/csrc/utils/python_numbers.h>
-
-#ifdef _WIN32
-#define ENABLE_EXPORT __declspec(dllexport)
-#else
-#define ENABLE_EXPORT __attribute__((visibility("default")))
-#endif
+#include <utils/Macros.h>
 
 
 static PyObject* _initExtension(PyObject* self, PyObject* noargs) {

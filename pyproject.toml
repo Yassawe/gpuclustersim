@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools", "wheel", "torch"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gpuclustersim"
+version = "0.0.1"
+description = "A multi-GPU cluster simulator for PyTorch"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = ["torch"]
+
