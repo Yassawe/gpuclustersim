@@ -120,6 +120,6 @@ at::Tensor& set_source_Storage_storage_offset_(
   int64_t storage_offset,
   c10::IntArrayRef size,
   c10::IntArrayRef stride) {
-  return at::cpu::set_(result, storage, storage_offset, size, stride); // TODO: this is a sus operation can cause segfaults on some weird cases
+  return at::cpu::set_(result, storage, storage_offset, size, stride); // TODO: this is a sus operation can cause segfaults on some weird cases, maybe just ignore it and do set_?
 }
 } // namespace at::native::gpuclustersim

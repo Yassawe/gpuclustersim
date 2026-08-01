@@ -1,5 +1,5 @@
 #include "DeviceFunctions.h"
-#include <include/sim_engine.h>
+#include <sim_engine.h>
 
 namespace c10::gpuclustersim {
 

@@ -1,35 +1,56 @@
-#include <c10/core/Allocator.h>
+#include "DeviceAllocator.h"
+#include "DeviceFunctions.h"
+#include <cstdlib>
+#include <cstring>
 
+namespace {
+  static c10::gpuclustersim::DummyAllocator g_allocator;
+  REGISTER_ALLOCATOR(c10::DeviceType::PrivateUse1, &g_allocator);
+}
 
-//TODO: track allocated and peak memory for each device to output memory usage statistics
 
 namespace c10::gpuclustersim {
 
-// cost models infer time from shape, the actual data can be dummy 1 byte, as long as nothing dereferences it. 
-// extreme caution so that nothing dereferences it, otherwise segfault and crash
+DummyAllocator::DummyAllocator(): per_device_stats(device_count()) {}
 
-// must be per device
+at::DataPtr DummyAllocator::allocate(size_t nbytes) {
+  std::lock_guard<std::mutex> lock(mutex_); 
 
-struct DummyAllocator : at::Allocator {
-  at::DataPtr allocate(size_t nbytes) override {
-    void* ptr = std::malloc(1); //change here
-    return at::DataPtr(ptr, ptr, &raw_delete, 
-      at::Device(at::kPrivateUse1, 0)); // HERE ALLOCATED TO A DEVICE
-  }
+  void* ptr = malloc(1); 
+  DeviceIndex device = current_device();  
+  auto& stats = per_device_stats[device];
+  stats.current_allocated+=nbytes;
+  if (stats.current_allocated>stats.peak_allocated) stats.peak_allocated=stats.current_allocated;
+  stats.n_allocations++;
+  allocation_sizes[ptr] = {nbytes, device};
 
-  static void raw_delete(void* ptr) {
-    free(ptr);
-  }
-  
-  void copy_data(void* dest, const void* src, std::size_t count) const override {
-    memcpy(dest, src, count);
-  }
+  return at::DataPtr(ptr, ptr, &DummyAllocator::deallocate, at::Device(at::kPrivateUse1, device));
+}
 
-  
-};
+void DummyAllocator::deallocate(void* ptr) {
+  std::lock_guard<std::mutex> lock(g_allocator.mutex_); 
+  auto it = g_allocator.allocation_sizes.find(ptr);
+  size_t nbytes = it->second.first;
+  DeviceIndex device = it->second.second;
+  auto& stats = g_allocator.per_device_stats[device];
+  stats.current_allocated-=nbytes;
+  stats.n_deallocations++;
+  g_allocator.allocation_sizes.erase(it);
+  free(ptr);
+}
 
-static DummyAllocator g_allocator;
+void DummyAllocator::copy_data(void* dest, const void* src, std::size_t count) const {
+  (void) count;
+  memcpy(dest, src, 1);
+}
 
-REGISTER_ALLOCATOR(c10::DeviceType::PrivateUse1, &g_allocator);
+gcs::sim::MemStats DummyAllocator::getStats(DeviceIndex device){
+  std::lock_guard<std::mutex> lock(mutex_); 
+  return per_device_stats[device];
+}
+
+void DummyAllocator::resetStats(DeviceIndex device){
+  per_device_stats[device] = gcs::sim::MemStats{};
+}
 
 }

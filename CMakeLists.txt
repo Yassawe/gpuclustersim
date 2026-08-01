@@ -46,4 +46,4 @@ include(${PROJECT_SOURCE_DIR}/cmake/TorchPythonTargets.cmake)
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/csrc/sim_engine) # simulation engine
 add_subdirectory(${PROJECT_SOURCE_DIR}/csrc/torch_backend) # torch bridge
-add_subdirectory(${PROJECT_SOURCE_DIR}/gpuclustersim/csrc)
+add_subdirectory(${PROJECT_SOURCE_DIR}/gpuclustersim/csrc) # python bindings
