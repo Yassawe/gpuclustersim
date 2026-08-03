@@ -1,9 +1,9 @@
 #include <ATen/core/CachingHostAllocator.h>
 #include <c10/core/Allocator.h>
 
-// providing hostalloc for pinned memory just in case, so that it doesn't raise exception in some scripts that use it
+// providing hostalloc for pinned memory just in case, so that it doesn't raise exception in some training scripts that use it
 // this is just a stub it does nothing
-// allocating real memory should be fine here since pinned host memory is short lived and shouldn't take much space (?)
+// allocating real memory should be fine here since pinned host memory is short lived and shouldn't take much space, it is batch data not params
 
 namespace c10::gpuclustersim {
 
