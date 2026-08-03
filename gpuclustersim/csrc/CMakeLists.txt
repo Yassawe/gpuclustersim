@@ -6,7 +6,7 @@ set(SOURCE_FILES
 
 add_library(${LIBRARY_NAME} SHARED ${SOURCE_FILES})
 
-target_link_libraries(${LIBRARY_NAME} PRIVATE torch_python_library gcs_torch_backend)
+target_link_libraries(${LIBRARY_NAME} PRIVATE torch_python_library gcs_sim_engine gcs_torch_backend)
 
 
 if(WIN32)

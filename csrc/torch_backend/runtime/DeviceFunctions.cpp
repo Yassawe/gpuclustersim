@@ -20,7 +20,7 @@ ENABLE_EXPORT DeviceIndex exchange_device(DeviceIndex device){
 }
 
 ENABLE_EXPORT DeviceIndex maybe_exchange_device(DeviceIndex device){
-  return static_cast<DeviceIndex>(gcs::sim::exchange_device(static_cast<int>(device))); // lmao
+  return static_cast<DeviceIndex>(gcs::sim::exchange_device(static_cast<int>(device))); // no cost to changing so doesn't matter, cold path anyways.
 }
 
 }
