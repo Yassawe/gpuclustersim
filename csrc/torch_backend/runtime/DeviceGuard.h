@@ -2,9 +2,6 @@
 #include <c10/core/Device.h>
 #include <c10/macros/Macros.h>
 
-
-
-
 namespace c10::gpuclustersim {
 
 class SimGuard : public c10::impl::DeviceGuardImplInterface { 
@@ -30,7 +27,7 @@ class SimGuard : public c10::impl::DeviceGuardImplInterface {
   
   void synchronizeDevice(const DeviceIndex /*device_index*/) const override;
 
-  // stream
+  // streams
 
   Stream getStream(Device) const override; 
 
@@ -49,7 +46,6 @@ class SimGuard : public c10::impl::DeviceGuardImplInterface {
   void synchronizeStream(const Stream& /*stream*/) const override; 
 
   // events
-
 
   void record(void** /*event*/, const Stream& /*stream*/, const DeviceIndex /*device_index*/, const c10::EventFlag /*flag*/) const override;
 

@@ -1,80 +1,55 @@
-#include <ATen/core/CachingHostAllocator.h>
-#include <ATen/detail/PrivateUse1HooksInterface.h>
-
-#include <c10/core/Allocator.h>
-#include <c10/core/Device.h>
-
+#include "Hooks.h"
+#include "DeviceFunctions.h"
 #include "Generator.h"
+#include "DeviceAllocator.h"
 
 
 namespace c10::gpuclustersim {
-struct DummyHooksInterface : public at::PrivateUse1HooksInterface {
-  DummyHooksInterface() {};
-  ~DummyHooksInterface() override = default;
 
-  void init() const override {
-    // This is called when PyTorch first accesses the device
-  }
+DeviceIndex SimHooksInterface::deviceCount() const {
+  return device_count();
+}
 
-  bool hasPrimaryContext(DeviceIndex device_index) const override {
-    return true;
-  }
+void SimHooksInterface::setCurrentDevice(DeviceIndex device) const {
+  set_device(device);
+}
 
-  bool isBuilt() const override {
-    return true;
-  }
+DeviceIndex SimHooksInterface::getCurrentDevice() const {
+  return current_device();
+}
 
-  bool isAvailable() const override {
-    return true; //implement
-  }
+DeviceIndex SimHooksInterface::exchangeDevice(DeviceIndex device) const {
+  return exchange_device(device);
+}
 
-  DeviceIndex deviceCount() const override {
-    return 1; //implement
-  }
+DeviceIndex SimHooksInterface::maybeExchangeDevice(DeviceIndex device) const {
+  return exchange_device(device);
+}
 
-  void setCurrentDevice(DeviceIndex device) const override {
-    // noop
-  }
+at::Allocator* SimHooksInterface::getPinnedMemoryAllocator() const {
+  return at::getHostAllocator(at::kPrivateUse1);
+}
 
-  DeviceIndex getCurrentDevice() const override {
-    return 0; //implement
-  }
+at::Device SimHooksInterface::getDeviceFromPtr(void* data) const {
+  auto* allocator = static_cast<c10::gpuclustersim::DummyAllocator*>(c10::GetAllocator(at::kPrivateUse1));
+  DeviceIndex device = allocator->PtrToDevice(data);
+  if (device == -1) return at::Device(at::kPrivateUse1, 0);
+  return Device(c10::DeviceType::PrivateUse1, device);
+}
 
-  DeviceIndex exchangeDevice(DeviceIndex device) const override {
-    return device; //noop
-  }
+const at::Generator& SimHooksInterface::getDefaultGenerator(DeviceIndex device_index) const {
+  getDefaultGenerator(device_index);
+}
 
-  DeviceIndex maybeExchangeDevice(DeviceIndex device) const override {
-
-    return device; //noop
-  }
-
-  at::Allocator* getPinnedMemoryAllocator() const override {
-    return at::getHostAllocator(at::kPrivateUse1);
-  }
-
-  bool isPinnedPtr(const void* data) const override {
-    return false;
-  }
-
-  at::Device getDeviceFromPtr(void* data) const override {
-        return at::Device(at::DeviceType::PrivateUse1, 0);
-  }
-
-  const at::Generator& getDefaultGenerator(DeviceIndex device_index) const override {
-    return getDefaultGenerator(device_index);
-  }
-  
-  at::Generator getNewGenerator(DeviceIndex device_index) const override {
-    return at::make_generator<DummyGenerator>(device_index);
-  }
-};
+at::Generator SimHooksInterface::getNewGenerator(DeviceIndex device_index) const {
+  return at::make_generator<DummyGenerator>(device_index);
+}
 
 
 static bool register_hook_flag [[maybe_unused]] = []() {
-  at::RegisterPrivateUse1HooksInterface(new DummyHooksInterface());
+  at::RegisterPrivateUse1HooksInterface(new SimHooksInterface());
   return true;
 }();
 
 
-} // namespace c10::openreg
+} // namespace

@@ -19,6 +19,7 @@ at::Tensor empty_memory_format(
   TORCH_CHECK(
   !c10::pinned_memory_or_default(pin_memory_opt),
   "Pin memory can only be on CPU");
+  const c10::DeviceGuard device_guard(device);
   constexpr c10::DispatchKeySet pu1_dks(c10::DispatchKey::PrivateUse1);
   auto allocator = at::GetAllocator(at::kPrivateUse1);
   return at::detail::empty_generic(
@@ -41,6 +42,7 @@ at::Tensor empty_strided(
   TORCH_CHECK(
   !c10::pinned_memory_or_default(pin_memory_opt),
   "Pin memory can only be on CPU");
+  const c10::DeviceGuard device_guard(device);
   constexpr c10::DispatchKeySet pu1_dks(c10::DispatchKey::PrivateUse1);
   auto allocator = at::GetAllocator(at::kPrivateUse1);
   return at::detail::empty_strided_generic(

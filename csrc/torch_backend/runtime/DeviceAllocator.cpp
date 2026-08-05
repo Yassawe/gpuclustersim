@@ -22,20 +22,23 @@ at::DataPtr DummyAllocator::allocate(size_t nbytes) {
   stats.current_allocated+=nbytes;
   if (stats.current_allocated>stats.peak_allocated) stats.peak_allocated=stats.current_allocated;
   stats.n_allocations++;
-  allocation_sizes[ptr] = {nbytes, device};
+  allocation_info[ptr] = {device, nbytes};
 
   return at::DataPtr(ptr, ptr, &DummyAllocator::deallocate, at::Device(at::kPrivateUse1, device));
 }
 
 void DummyAllocator::deallocate(void* ptr) {
+  // very ugly to access a global instance, but because this function is static it can't access the instance members. and 
+  // the allocate above requires it to be static, otherwise compile error.
+
   std::lock_guard<std::mutex> lock(g_allocator.mutex_); 
-  auto it = g_allocator.allocation_sizes.find(ptr);
-  size_t nbytes = it->second.first;
-  DeviceIndex device = it->second.second;
+  auto it = g_allocator.allocation_info.find(ptr);
+  DeviceIndex device = it->second.first;
+  size_t nbytes = it->second.second;
   auto& stats = g_allocator.per_device_stats[device];
   stats.current_allocated-=nbytes;
   stats.n_deallocations++;
-  g_allocator.allocation_sizes.erase(it);
+  g_allocator.allocation_info.erase(it);
   free(ptr);
 }
 
@@ -51,6 +54,14 @@ gcs::sim::MemStats DummyAllocator::getStats(DeviceIndex device){
 
 void DummyAllocator::resetStats(DeviceIndex device){
   per_device_stats[device] = gcs::sim::MemStats{};
+}
+
+DeviceIndex DummyAllocator::PtrToDevice(void* ptr) {
+  std::lock_guard<std::mutex> lock(mutex_); 
+  auto it = allocation_info.find(ptr);
+  if (it != allocation_info.end()) return it->second.first;
+  
+  return -1;
 }
 
 }

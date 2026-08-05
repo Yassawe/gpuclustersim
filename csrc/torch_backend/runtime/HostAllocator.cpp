@@ -2,6 +2,13 @@
 #include <cstdlib>
 #include <cstring>
 
+namespace {
+
+static c10::gpuclustersim::DummyHostAllocator g_host_allocator;
+REGISTER_HOST_ALLOCATOR(at::kPrivateUse1, &g_host_allocator);
+
+}
+
 namespace c10::gpuclustersim {
 
 at::DataPtr DummyHostAllocator::allocate(size_t nbytes) {
@@ -19,9 +26,3 @@ void DummyHostAllocator::copy_data(void* dest, const void* src, std::size_t coun
 
 } //namespace c10::gpuclustersim
 
-namespace {
-
-static c10::gpuclustersim::DummyHostAllocator g_host_allocator;
-REGISTER_HOST_ALLOCATOR(at::kPrivateUse1, &g_host_allocator);
-
-}

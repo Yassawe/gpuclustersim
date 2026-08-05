@@ -2,7 +2,7 @@
 
 namespace gcs::sim {
 
-static int g_num_devices = 1;
+static int g_num_devices = 8;
 static thread_local int g_current_device = 0;
 
 
