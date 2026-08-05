@@ -1,5 +1,7 @@
 #include <c10/core/impl/DeviceGuardImplInterface.h>
+#include <c10/core/DeviceCapability.h>
 #include <c10/core/Device.h>
+#include <c10/core/Stream.h>
 #include <c10/macros/Macros.h>
 
 namespace c10::gpuclustersim {

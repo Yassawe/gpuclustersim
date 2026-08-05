@@ -13,6 +13,6 @@ namespace c10::gpuclustersim {
         ~DummyGenerator() override = default;
     };
   
-  const at::Generator& getDefaultGenerator(c10::DeviceIndex device_index);
+  const at::Generator& getGenerator(c10::DeviceIndex device_index);
 
 }

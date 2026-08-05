@@ -1,7 +1,7 @@
 #include "Hooks.h"
-#include "DeviceFunctions.h"
 #include "Generator.h"
 #include "DeviceAllocator.h"
+#include "DeviceFunctions.h"
 
 
 namespace c10::gpuclustersim {
@@ -38,7 +38,7 @@ at::Device SimHooksInterface::getDeviceFromPtr(void* data) const {
 }
 
 const at::Generator& SimHooksInterface::getDefaultGenerator(DeviceIndex device_index) const {
-  getDefaultGenerator(device_index);
+  return getGenerator(device_index);
 }
 
 at::Generator SimHooksInterface::getNewGenerator(DeviceIndex device_index) const {

@@ -1,8 +1,6 @@
 #include "DeviceGuard.h"
 #include "DeviceFunctions.h"
-
-#include <c10/core/DeviceCapability.h>
-#include <c10/core/Stream.h>
+#include "Streams.h"
 
 namespace c10::gpuclustersim {
 
@@ -38,27 +36,27 @@ void SimGuard::synchronizeDevice(const DeviceIndex /*device_index*/) const {
 }
 
 // streams
-// stubs for now
 
 Stream SimGuard::getStream(Device device) const {
-  return Stream(Stream::DEFAULT, device);
+  return Stream(Stream::UNSAFE, device, getSimStream(device.index()));
 }
 
 Stream SimGuard::getDefaultStream(Device device) const {
-  return Stream(Stream::DEFAULT, device);
+  return Stream(Stream::UNSAFE, device, getDefaultSimStream(device.index()));
 }
 
 Stream SimGuard::getStreamFromGlobalPool(Device device, bool /*isHighPriority*/) const {
-  return Stream(Stream::DEFAULT, device);
+  // ignore priority just return the current stream
+  return Stream(Stream::UNSAFE, device, getNewSimStream(device.index()));
 }
 
 Stream SimGuard::getNewStream(Device device, int /*priority*/) const {
-  return Stream(Stream::DEFAULT, device);
+  return Stream(Stream::UNSAFE, device, getNewSimStream(device.index()));
 }
 
 Stream SimGuard::exchangeStream(Stream s) const {
-  // TODO
-  return s;
+  StreamId old_stream_id = exchangeSimStream(s.device_index(), s.id()); 
+  return Stream(Stream::UNSAFE, Device(kPrivateUse1, s.device_index()), old_stream_id);
 }
 
 void* SimGuard::getStreamNativeHandle(const Stream /*stream*/) const {

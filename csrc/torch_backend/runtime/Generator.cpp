@@ -5,27 +5,24 @@
 
 namespace c10::gpuclustersim {
 
-static std::vector<at::Generator> default_generators;
+static std::vector<at::Generator> generators;
   
-const at::Generator& getDefaultGenerator(c10::DeviceIndex device_index) {
+const at::Generator& getGenerator(c10::DeviceIndex device_index) {
   static bool flag [[maybe_unused]] = []() {
   auto device_nums = device_count();
-  default_generators.resize(device_nums);
+  generators.resize(device_nums);
   for (auto i = 0; i < device_nums; i++) {
-    default_generators[i] = at::make_generator<DummyGenerator>(i);
-    default_generators[i].seed();
+    generators[i] = at::make_generator<DummyGenerator>(i);
+    generators[i].seed();
   }
   return true;
   }(); // lazy init woodo magic
 
   DeviceIndex idx = device_index;
   
-  if (idx == -1) {
-    idx = current_device();
-  } else {
-    TORCH_CHECK(idx >= 0 && idx < device_count());
-  }
-  return default_generators[idx];
+  if (idx == -1) idx = current_device();
+
+  return generators[idx];
 }
 
 } // namespace c10::gpuclustersim
