@@ -25,42 +25,42 @@ class SimGuard : public c10::impl::DeviceGuardImplInterface {
 
   void uncheckedSetDevice(Device) const noexcept override;
 
-  DeviceCapability getDeviceCapability(Device /*unused*/) const override;
+  DeviceCapability getDeviceCapability(Device device) const override;
   
-  void synchronizeDevice(const DeviceIndex /*device_index*/) const override;
+  void synchronizeDevice(const DeviceIndex device_id) const override;
 
   // streams
 
   Stream getStream(Device) const override; 
 
-  Stream getDefaultStream(Device /*unused*/) const override;
+  Stream getDefaultStream(Device device) const override;
 
-  Stream getStreamFromGlobalPool(Device /*unused*/, bool isHighPriority = false) const override;
+  Stream getStreamFromGlobalPool(Device device, bool isHighPriority = false) const override;
 
-  Stream getNewStream(Device /*unused*/, int priority = 0) const override;
+  Stream getNewStream(Device device, int priority = 0) const override;
 
-  Stream exchangeStream(Stream) const override;
+  Stream exchangeStream(Stream stream) const override;
 
-  void* getStreamNativeHandle(const Stream) const override;
+  void* getStreamNativeHandle(const Stream stream) const override;
 
-  bool queryStream(const Stream& /*stream*/) const override;
+  bool queryStream(const Stream& stream) const override;
 
-  void synchronizeStream(const Stream& /*stream*/) const override; 
+  void synchronizeStream(const Stream& stream) const override; 
 
   // events
 
-  void record(void** /*event*/, const Stream& /*stream*/, const DeviceIndex /*device_index*/, const c10::EventFlag /*flag*/) const override;
+  void record(void** event, const Stream& stream, const DeviceIndex device_id, const c10::EventFlag flag) const override;
 
-  void block(void* /*event*/, const Stream& /*stream*/) const override;
+  void block(void* event, const Stream& stream) const override;
 
-  bool queryEvent(void* /*event*/) const override;
+  bool queryEvent(void* event) const override;
 
-  void synchronizeEvent(void* /*event*/) const override;
+  void synchronizeEvent(void* event) const override;
 
   double elapsedTime(
-      void* /*event1*/,
-      void* /*event2*/,
-      const DeviceIndex /*device_index*/) const override;
+      void* event1,
+      void* event2,
+      const DeviceIndex device_id) const override;
 
 };
 

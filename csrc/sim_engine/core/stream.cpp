@@ -12,8 +12,8 @@ thread_local std::vector<int> device_current_stream;
 
 static void ensure_size(int device) {
   if (device>=device_next_stream_id.size() || device>=device_current_stream.size()){
-    device_next_stream_id.resize(device+1, 1);
-    device_current_stream.resize(device+1, 0);
+    device_next_stream_id.resize(device+1, 1); // 0 is presumed as default stream, so next is init as 1
+    device_current_stream.resize(device+1, 0); // by default stream 0 is used
   }
 }
 
@@ -26,8 +26,7 @@ ENABLE_EXPORT int create_stream(int device) {
 }
 
 ENABLE_EXPORT int default_stream(int device) {
-  int stream_id = 0; 
-  return stream_id;
+  return 0;
 }
 
 ENABLE_EXPORT int current_stream(int device) {

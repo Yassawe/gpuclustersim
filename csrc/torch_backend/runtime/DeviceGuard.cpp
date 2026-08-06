@@ -27,12 +27,12 @@ void SimGuard::uncheckedSetDevice(Device device) const noexcept {
   set_device(device.index());
 }
 
-DeviceCapability SimGuard::getDeviceCapability(Device /*unused*/) const {
+DeviceCapability SimGuard::getDeviceCapability(Device device) const {
   return DeviceCapability{};
 }
 
-void SimGuard::synchronizeDevice(const DeviceIndex /*device_index*/) const {
-  //TODO: implement? sync point for sim
+void SimGuard::synchronizeDevice(const DeviceIndex device_id) const {
+  //TODO: this should wait until all streams on a device are synced, set_stream_timelines to a max value among them
 }
 
 // streams
@@ -45,12 +45,12 @@ Stream SimGuard::getDefaultStream(Device device) const {
   return Stream(Stream::UNSAFE, device, getDefaultSimStream(device.index()));
 }
 
-Stream SimGuard::getStreamFromGlobalPool(Device device, bool /*isHighPriority*/) const {
+Stream SimGuard::getStreamFromGlobalPool(Device device, bool isHighPriority) const {
   // ignore priority just return the current stream
   return Stream(Stream::UNSAFE, device, getNewSimStream(device.index()));
 }
 
-Stream SimGuard::getNewStream(Device device, int /*priority*/) const {
+Stream SimGuard::getNewStream(Device device, int priority) const {
   return Stream(Stream::UNSAFE, device, getNewSimStream(device.index()));
 }
 
@@ -59,44 +59,44 @@ Stream SimGuard::exchangeStream(Stream stream) const {
   return Stream(Stream::UNSAFE, Device(kPrivateUse1, stream.device_index()), old_stream_id);
 }
 
-void* SimGuard::getStreamNativeHandle(const Stream /*stream*/) const {
+void* SimGuard::getStreamNativeHandle(const Stream stream) const {
   return nullptr;
 }
 
-bool SimGuard::queryStream(const Stream& /*stream*/) const {
+bool SimGuard::queryStream(const Stream& stream) const {
   return true;
 }
 
-void SimGuard::synchronizeStream(const Stream& /*stream*/) const {
-  // TODO: implement
+void SimGuard::synchronizeStream(const Stream& stream) const {
+  // TODO: this waits until all work on the stream is done, effectively noop in my case, should advance global time to end of stream, but it already is there
 }
 
 // events
 
 void SimGuard::record(
-    void** /*event*/,
-    const Stream& /*stream*/,
-    const DeviceIndex /*device_index*/,
-    const c10::EventFlag /*flag*/) const {
+    void** event,
+    const Stream& stream,
+    const DeviceIndex device_id,
+    const c10::EventFlag flag) const {
   // TODO: record on the sim stream timeline
 }
 
-void SimGuard::block(void* /*event*/, const Stream& /*stream*/) const {
+void SimGuard::block(void* event, const Stream& stream) const {
   // TODO: insert a cross-stream wait edge in the sim scheduler
 }
 
-bool SimGuard::queryEvent(void* /*event*/) const {
+bool SimGuard::queryEvent(void* event) const {
   return true;
 }
 
-void SimGuard::synchronizeEvent(void* /*event*/) const {
-  // TODO: implement
+void SimGuard::synchronizeEvent(void* event) const {
+  // TODO: should advance global time to the event timestamp, but it will always be satisfied so noop
 }
 
 double SimGuard::elapsedTime(
-    void* /*event1*/,
-    void* /*event2*/,
-    const DeviceIndex /*device_index*/) const {
+    void* event1,
+    void* event2,
+    const DeviceIndex device_id) const {
   return 0.0;
 }
 
