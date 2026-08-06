@@ -17,7 +17,7 @@ class SimGuard : public c10::impl::DeviceGuardImplInterface {
   // device
   DeviceIndex deviceCount() const noexcept override;
 
-  Device exchangeDevice(Device d) const override;
+  Device exchangeDevice(Device device) const override;
 
   Device getDevice() const override;
 

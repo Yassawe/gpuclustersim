@@ -21,8 +21,8 @@ public:
   at::DataPtr allocate(size_t nbytes) override;
   static void deallocate(void* ptr);
   void copy_data(void* dest, const void* src, std::size_t count) const override;
-  gcs::sim::MemStats getStats(DeviceIndex device); 
-  void resetStats(DeviceIndex device);
+  gcs::sim::MemStats getStats(DeviceIndex device_id); 
+  void resetStats(DeviceIndex device_id);
   DeviceIndex PtrToDevice(void* ptr);
 
 private: 

@@ -10,8 +10,8 @@ DeviceIndex SimGuard::deviceCount() const noexcept {
   return device_count();
 }
 
-Device SimGuard::exchangeDevice(Device d) const {
-  auto old = exchange_device(d.index());
+Device SimGuard::exchangeDevice(Device device) const {
+  auto old = exchange_device(device.index());
   return Device(static_type, old);
 }
 
@@ -19,12 +19,12 @@ Device SimGuard::getDevice() const {
   return Device(static_type, current_device());
 }
 
-void SimGuard::setDevice(Device d) const {
-  set_device(d.index());
+void SimGuard::setDevice(Device device) const {
+  set_device(device.index());
 }
 
-void SimGuard::uncheckedSetDevice(Device d) const noexcept {
-  set_device(d.index());
+void SimGuard::uncheckedSetDevice(Device device) const noexcept {
+  set_device(device.index());
 }
 
 DeviceCapability SimGuard::getDeviceCapability(Device /*unused*/) const {
@@ -54,9 +54,9 @@ Stream SimGuard::getNewStream(Device device, int /*priority*/) const {
   return Stream(Stream::UNSAFE, device, getNewSimStream(device.index()));
 }
 
-Stream SimGuard::exchangeStream(Stream s) const {
-  StreamId old_stream_id = exchangeSimStream(s.device_index(), s.id()); 
-  return Stream(Stream::UNSAFE, Device(kPrivateUse1, s.device_index()), old_stream_id);
+Stream SimGuard::exchangeStream(Stream stream) const {
+  StreamId old_stream_id = exchangeSimStream(stream.device_index(), stream.id()); 
+  return Stream(Stream::UNSAFE, Device(kPrivateUse1, stream.device_index()), old_stream_id);
 }
 
 void* SimGuard::getStreamNativeHandle(const Stream /*stream*/) const {

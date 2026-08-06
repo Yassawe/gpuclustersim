@@ -17,14 +17,14 @@ at::DataPtr DummyAllocator::allocate(size_t nbytes) {
   std::lock_guard<std::mutex> lock(mutex_); 
 
   void* ptr = malloc(1); 
-  DeviceIndex device = current_device();  
-  auto& stats = per_device_stats[device];
+  DeviceIndex device_id = current_device();  
+  auto& stats = per_device_stats[device_id];
   stats.current_allocated+=nbytes;
   if (stats.current_allocated>stats.peak_allocated) stats.peak_allocated=stats.current_allocated;
   stats.n_allocations++;
-  allocation_info[ptr] = {device, nbytes};
+  allocation_info[ptr] = {device_id, nbytes};
 
-  return at::DataPtr(ptr, ptr, &DummyAllocator::deallocate, at::Device(at::kPrivateUse1, device));
+  return at::DataPtr(ptr, ptr, &DummyAllocator::deallocate, at::Device(at::kPrivateUse1, device_id));
 }
 
 void DummyAllocator::deallocate(void* ptr) {
@@ -33,9 +33,9 @@ void DummyAllocator::deallocate(void* ptr) {
 
   std::lock_guard<std::mutex> lock(g_allocator.mutex_); 
   auto it = g_allocator.allocation_info.find(ptr);
-  DeviceIndex device = it->second.first;
+  DeviceIndex device_id = it->second.first;
   size_t nbytes = it->second.second;
-  auto& stats = g_allocator.per_device_stats[device];
+  auto& stats = g_allocator.per_device_stats[device_id];
   stats.current_allocated-=nbytes;
   stats.n_deallocations++;
   g_allocator.allocation_info.erase(it);
@@ -47,20 +47,19 @@ void DummyAllocator::copy_data(void* dest, const void* src, std::size_t count) c
   memcpy(dest, src, 1);
 }
 
-gcs::sim::MemStats DummyAllocator::getStats(DeviceIndex device){
+gcs::sim::MemStats DummyAllocator::getStats(DeviceIndex device_id){
   std::lock_guard<std::mutex> lock(mutex_); 
-  return per_device_stats[device];
+  return per_device_stats[device_id];
 }
 
-void DummyAllocator::resetStats(DeviceIndex device){
-  per_device_stats[device] = gcs::sim::MemStats{};
+void DummyAllocator::resetStats(DeviceIndex device_id){
+  per_device_stats[device_id] = gcs::sim::MemStats{};
 }
 
 DeviceIndex DummyAllocator::PtrToDevice(void* ptr) {
   std::lock_guard<std::mutex> lock(mutex_); 
   auto it = allocation_info.find(ptr);
   if (it != allocation_info.end()) return it->second.first;
-  
   return -1;
 }
 
