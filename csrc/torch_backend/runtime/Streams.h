@@ -11,6 +11,5 @@ StreamId getNewSimStream(DeviceIndex device_id);
 
 StreamId exchangeSimStream(DeviceIndex device_id, StreamId stream_id);
 
-void synchronizeSimStream(DeviceIndex device_id, StreamId stream_id); // for later
 
 } //namespace c10::gpuclustersim

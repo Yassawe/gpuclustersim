@@ -1,5 +1,5 @@
 #include <utils/Macros.h>
-
+#include <vector>
 
 namespace gcs::sim {
 
@@ -23,7 +23,7 @@ struct ENABLE_EXPORT MemStats {
   int n_deallocations = 0;
 };
 
-// streams
+// torch streams
 
 ENABLE_EXPORT int create_stream(int device);
 ENABLE_EXPORT int default_stream(int device);
@@ -31,8 +31,14 @@ ENABLE_EXPORT int current_stream(int device);
 ENABLE_EXPORT int exchange_stream(int device, int stream_id);
 
 
-// events
+// torch events
 
-ENABLE_EXPORT 
+ENABLE_EXPORT void event_record(void** event, int device, int stream);
+ENABLE_EXPORT void event_block(void* event, int device, int stream);
+ENABLE_EXPORT bool event_query(void* event);
+ENABLE_EXPORT double event_elapsed_time(void* event1, void* event2);
+ENABLE_EXPORT void event_destroy(void* event);
+
+
 
 }

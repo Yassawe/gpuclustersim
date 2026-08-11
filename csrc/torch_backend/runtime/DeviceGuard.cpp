@@ -1,6 +1,7 @@
 #include "DeviceGuard.h"
 #include "DeviceFunctions.h"
 #include "Streams.h"
+#include "Events.h"
 
 namespace c10::gpuclustersim {
 
@@ -32,7 +33,7 @@ DeviceCapability SimGuard::getDeviceCapability(Device device) const {
 }
 
 void SimGuard::synchronizeDevice(const DeviceIndex device_id) const {
-  //TODO: this should wait until all streams on a device are synced, set_stream_timelines to a max value among them
+  //this should make host wait until all streams on a device are finished, but i have no host_time now so no-op
 }
 
 // streams
@@ -68,36 +69,33 @@ bool SimGuard::queryStream(const Stream& stream) const {
 }
 
 void SimGuard::synchronizeStream(const Stream& stream) const {
-  // TODO: this waits until all work on the stream is done, effectively noop in my case, should advance global time to end of stream, but it already is there
+  // this waits until all work on the stream is done, effectively noop in my case, should advance global time to end of stream, but it already is there regardless
 }
 
 // events
 
-void SimGuard::record(
-    void** event,
-    const Stream& stream,
-    const DeviceIndex device_id,
-    const c10::EventFlag flag) const {
-  // TODO: record on the sim stream timeline
+void SimGuard::record(void** event, const Stream& stream, const DeviceIndex device_id, const c10::EventFlag flag) const {
+  recordSimEvent(event, stream.device_index(), stream.id());
 }
 
 void SimGuard::block(void* event, const Stream& stream) const {
-  // TODO: insert a cross-stream wait edge in the sim scheduler
+  blockSimEvent(event, stream.device_index(), stream.id());
 }
 
 bool SimGuard::queryEvent(void* event) const {
-  return true;
+  return querySimEvent(event);
 }
 
 void SimGuard::synchronizeEvent(void* event) const {
-  // TODO: should advance global time to the event timestamp, but it will always be satisfied so noop
+  // should advance global time to the event timestamp, but it will always be satisfied so noop
 }
 
-double SimGuard::elapsedTime(
-    void* event1,
-    void* event2,
-    const DeviceIndex device_id) const {
-  return 0.0;
+double SimGuard::elapsedTime(void* event1, void* event2, const DeviceIndex device_id) const {
+  return simEventElapsedTime(event1, event2);
+}
+
+void SimGuard::destroyEvent(void* event, const DeviceIndex device_id) const noexcept {
+  destroySimEvent(event);
 }
 
 

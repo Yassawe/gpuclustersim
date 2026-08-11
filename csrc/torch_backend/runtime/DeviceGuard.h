@@ -57,10 +57,9 @@ class SimGuard : public c10::impl::DeviceGuardImplInterface {
 
   void synchronizeEvent(void* event) const override;
 
-  double elapsedTime(
-      void* event1,
-      void* event2,
-      const DeviceIndex device_id) const override;
+  double elapsedTime(void* event1, void* event2, const DeviceIndex device_id) const override;
+
+  void destroyEvent(void* event, const DeviceIndex device_id) const noexcept override;
 
 };
 
