@@ -7,8 +7,8 @@ namespace gcs::sim {
 
 static std::mutex mutex_; 
 
-std::vector<int> device_next_stream_id;
-thread_local std::vector<int> device_current_stream;
+static std::vector<int> device_next_stream_id;
+static thread_local std::vector<int> device_current_stream;
 
 static void ensure_size(int device) {
   if (device>=device_current_stream.size()){

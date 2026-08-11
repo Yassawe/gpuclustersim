@@ -3,7 +3,7 @@
 
 namespace gcs::sim{
 
-struct Scheduled_Op{
+struct ScheduledOp{
   std::string name;
   double start_time;
   double end_time;
@@ -11,10 +11,12 @@ struct Scheduled_Op{
 
 struct StreamTimeline{
   double current_time = 0;
-  std::vector<Scheduled_Op> ops;
+  std::vector<ScheduledOp> ops;
 };
 
-get_current_stream_time(int device, int stream); 
-advance_current_stream_time(int device, int stream, double time);
+double get_current_stream_time(int device, int stream);
+void advance_current_stream_time(int device, int stream, double time);
+
+std::vector<std::vector<StreamTimeline>> get_timeline();
 
 }

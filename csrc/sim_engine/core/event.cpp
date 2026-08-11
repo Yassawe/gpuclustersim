@@ -49,5 +49,4 @@ ENABLE_EXPORT void event_destroy(void* event){
   delete static_cast<SimEvent*>(event);
 }
 
-
 }
