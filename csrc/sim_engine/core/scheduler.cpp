@@ -1,7 +1,7 @@
-#include "scheduler.h"
-
+#include "sim_engine.h"
+#include "core/scheduler.h"
 #include <mutex>
-#include <vector>
+
 
 namespace gcs::sim {
 
@@ -37,7 +37,7 @@ void advance_current_stream_time(int device, int stream, double time) {
 }
 
 
-void add_op_to_timeline(int device, int stream, std::string name, double duration) {
+void schedule_op(int device, int stream, std::string name, double duration) {
   std::lock_guard<std::mutex> lock(mutex_);
   ensure_size(device, stream);
   auto& t = timeline[device][stream];
@@ -46,13 +46,6 @@ void add_op_to_timeline(int device, int stream, std::string name, double duratio
   t.ops.push_back(ScheduledOp{name, start, end});
   t.current_time = end;
 }
-
-void schedule_compute_op(int device, int stream, ) {
-
-}
-
-// void schedule_comm_op() {}
-
 
 std::vector<std::vector<StreamTimeline>> get_timeline() {
   std::lock_guard<std::mutex> lock(mutex_);

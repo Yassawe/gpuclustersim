@@ -30,6 +30,7 @@ at::DataPtr DummyAllocator::allocate(size_t nbytes) {
 void DummyAllocator::deallocate(void* ptr) {
   // very ugly to access a global instance, but because this function is static it can't access the instance members. and 
   // the allocate above requires it to be static, otherwise compile error.
+  // this works because the class is a singleton, only one allocator thoughout all torch program lifetime
 
   std::lock_guard<std::mutex> lock(g_allocator.mutex_); 
   auto it = g_allocator.allocation_info.find(ptr);

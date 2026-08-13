@@ -1,5 +1,5 @@
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace gcs::sim{
 
@@ -16,6 +16,7 @@ struct StreamTimeline{
 
 double get_current_stream_time(int device, int stream);
 void advance_current_stream_time(int device, int stream, double time);
+void schedule_op(int device, int stream, std::string name, double duration); 
 
 std::vector<std::vector<StreamTimeline>> get_timeline();
 

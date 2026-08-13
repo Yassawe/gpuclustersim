@@ -1,5 +1,5 @@
 #include "sim_engine.h"
-#include "scheduler.h"
+#include "core/scheduler.h"
 
 #include <vector>
 #include <algorithm>

@@ -1,106 +1,118 @@
 #include "Common.h"
-
+#include "runtime/DeviceFunctions.h"
+#include "runtime/Streams.h"
 #include <iostream>
+
 
 namespace at::native::gpuclustersim {
 
-void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
+c10::Device _infer_target_device(torch::jit::Stack& stack){
+  // honestly i am not sure if this is even non redundant and if current_device() would have worked fine. this is mostly
+  // precaution, maybe wasteful. I don't know whether there is a guarantee that torch always uses guard to set_device() 
+  // before any op can be dispatched.
 
-  std::cout << "[Simulator] Intercepted: " << op.schema().name() << std::endl;
-  
-  const auto num_inputs = stack->size();
-  torch::jit::Stack meta_stack;
-  meta_stack.reserve(num_inputs);
-  
-  // ─── Step 1: Convert stack to meta ───
+  int num_entries = stack.size();
 
-  for (size_t i = 0; i < num_inputs; ++i) {
-    const auto& iv = (*stack)[i];
-    
-    if (iv.isTensor()) {
-      const auto& t = iv.toTensor();
-      if (t.defined()) {
-        auto meta = at::empty(t.sizes(), t.options().device(c10::kMeta));
-        meta_stack.push_back(std::move(meta));
-      } else {
-        meta_stack.push_back(t);
-      }
-    }
-    else if (iv.isTensorList()) {
-      const auto& list = iv.toTensorList();
-      c10::List<at::Tensor> meta_list;
-      meta_list.reserve(list.size());
-      for (const auto& ref : list) {
-        const at::Tensor& t = ref;
-        if (t.defined()) {
-          meta_list.push_back(at::empty(t.sizes(), t.options().device(c10::kMeta)));
-        } else {
-          meta_list.push_back(t);
-        }
-      }
-      meta_stack.push_back(std::move(meta_list));
-    }
-    else if (iv.isDevice()) {
-      meta_stack.push_back(c10::Device(c10::kMeta));
-    }
-    else {
-      meta_stack.push_back(iv);
+  // first try to infer from explicit device member of the stack
+  for(int i=0; i<num_entries; i++){ 
+    c10::IValue& iv = stack[i];
+    if (iv.isDevice()){
+      return iv.toDevice();
     }
   }
-  
-  // ─── Step 2: Explicitly dispatch to Meta kernel ───
+
+  // then try to infer from allocated tensors
+  for(int i=0; i<num_entries; i++){
+    c10::IValue& iv = stack[i];
+    if (iv.isTensor()) {
+      at::Tensor& t = iv.toTensor();
+      if (t.defined() && t.device().type() == c10::DeviceType::PrivateUse1) return t.device();
+      
+    }
+    else if (iv.isTensorList()){
+      const c10::List<at::Tensor>& tl = iv.toTensorList();
+      int list_size = tl.size();
+      for(int j = 1; j<list_size; j++){
+        const at::Tensor& t = tl[j];
+        if (t.defined() && t.device().type() == c10::DeviceType::PrivateUse1) return t.device();
+
+      }
+    }
+  }
+
+  // then fallback to default current device getter
+  return c10::Device(c10::DeviceType::PrivateUse1, c10::gpuclustersim::current_device());
+}
+
+
+torch::jit::Stack _cast_stack_to_device(torch::jit::Stack& stack, c10::Device device){
+  int num_entries = stack.size();
+  torch::jit::Stack new_stack;
+  new_stack.reserve(num_entries);
+
+  for (int i = 0; i<num_entries; i++){
+    c10::IValue& iv = stack[i];
+
+    if(iv.isTensor()) {
+      at::Tensor& t = iv.toTensor();
+      if (t.defined()) {
+        new_stack.push_back(at::empty_strided(t.sizes(), t.strides(), t.options().device(device)));
+      } 
+      else {
+        new_stack.push_back(t);
+      }
+    }
+
+    else if (iv.isTensorList()){
+      const c10::List<at::Tensor>& tl = iv.toTensorList();
+      int list_size = tl.size();
+      c10::List<at::Tensor> new_list;
+      new_list.reserve(list_size);
+      for (int j=0; j<list_size; j++){
+        const at::Tensor& t = tl[j];
+        if (t.defined()) {
+          new_list.push_back(at::empty_strided(t.sizes(), t.strides(), t.options().device(device)));
+        } 
+        else {
+          new_list.push_back(t);
+        }
+      }
+      new_stack.push_back(std::move(new_list));
+    }
+
+    else if (iv.isDevice()){
+      new_stack.push_back(device);
+    }
+
+    else {
+      new_stack.push_back(iv);
+    }
+  }
+
+  return new_stack;
+}
+
+
+void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
+
+  c10::Device device = _infer_target_device(*stack);
+  c10::DeviceIndex device_id = device.index();
+  c10::StreamId stream_id = c10::gpuclustersim::getSimStream(device_id);
+  std::cout << "[Simulator] Intercepted: " << op.schema().name() << std::endl;
+
+
+
+  torch::jit::Stack meta_stack = _cast_stack_to_device(*stack, c10::Device(c10::kMeta));
+
   try {
     c10::DispatchKeySet meta_ks(c10::DispatchKey::Meta);
     c10::Dispatcher::singleton().redispatchBoxed(op, meta_ks, &meta_stack);
+    *stack = _cast_stack_to_device(meta_stack, device);
   }
   catch (const c10::Error& e) {
-    std::cerr << "[Simulator] Meta error for " << op.schema().name() 
-        << ": " << e.what() << std::endl;
-    // Fall back to CPU
     at::native::cpu_fallback(op, stack);
-    return;
-  }
-  
-  // ─── Step 3: Convert meta outputs back to PrivateUse1 ───
-  stack->clear();
-  for (size_t i = 0; i < meta_stack.size(); ++i) {
-    const auto& iv = meta_stack[i];
-    
-    if (iv.isTensor()) {
-      const auto& meta_t = iv.toTensor();
-      if (meta_t.defined()) {
-        auto pu_t = at::empty_strided(
-          meta_t.sizes(),
-          meta_t.strides(),
-          meta_t.options().device(c10::Device(c10::DeviceType::PrivateUse1, 0))
-        );
-        stack->push_back(std::move(pu_t));
-      } else {
-        stack->push_back(meta_t);
-      }
-    }
-    else if (iv.isTensorList()) {
-      const auto& meta_list = iv.toTensorList();
-      c10::List<at::Tensor> pu_list;
-      pu_list.reserve(meta_list.size());
-      for (const auto& ref : meta_list) {
-        const at::Tensor& meta_t = ref;
-        if (meta_t.defined()) {
-          pu_list.push_back(at::empty_strided(
-            meta_t.sizes(),
-            meta_t.strides(),
-            meta_t.options().device(c10::Device(c10::DeviceType::PrivateUse1, 0))
-          ));
-        } else {
-          pu_list.push_back(meta_t);
-        }
-      }
-      stack->push_back(std::move(pu_list));
-    }
-    else {
-      stack->push_back(iv);
-    }
-  }
+    *stack = _cast_stack_to_device(*stack, device);
+  }  
 }
 
 } // namespace at::native::gpuclustersim

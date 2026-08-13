@@ -39,6 +39,8 @@ ENABLE_EXPORT bool event_query(void* event);
 ENABLE_EXPORT double event_elapsed_time(void* event1, void* event2);
 ENABLE_EXPORT void event_destroy(void* event);
 
+// scheduler
+
 
 
 }

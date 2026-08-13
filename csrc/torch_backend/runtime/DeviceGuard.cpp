@@ -48,7 +48,7 @@ Stream SimGuard::getDefaultStream(Device device) const {
 
 Stream SimGuard::getStreamFromGlobalPool(Device device, bool isHighPriority) const {
   // ignore priority just return the current stream
-  return Stream(Stream::UNSAFE, device, getNewSimStream(device.index()));
+  return Stream(Stream::UNSAFE, device, getSimStream(device.index()));
 }
 
 Stream SimGuard::getNewStream(Device device, int priority) const {
@@ -65,7 +65,7 @@ void* SimGuard::getStreamNativeHandle(const Stream stream) const {
 }
 
 bool SimGuard::queryStream(const Stream& stream) const {
-  return true;
+  return true; //always ready
 }
 
 void SimGuard::synchronizeStream(const Stream& stream) const {
