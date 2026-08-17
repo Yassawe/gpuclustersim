@@ -2,6 +2,7 @@
 #include "runtime/DeviceFunctions.h"
 #include "runtime/Streams.h"
 #include <iostream>
+#include <sim_engine.h>
 
 
 namespace at::native::gpuclustersim {
@@ -32,7 +33,7 @@ c10::Device _infer_target_device(torch::jit::Stack& stack){
     else if (iv.isTensorList()){
       const c10::List<at::Tensor>& tl = iv.toTensorList();
       int list_size = tl.size();
-      for(int j = 1; j<list_size; j++){
+      for(int j = 0; j<list_size; j++){
         const at::Tensor& t = tl[j];
         if (t.defined() && t.device().type() == c10::DeviceType::PrivateUse1) return t.device();
 
@@ -40,7 +41,7 @@ c10::Device _infer_target_device(torch::jit::Stack& stack){
     }
   }
 
-  // then fallback to default current device getter
+  // fallback to default current device getter
   return c10::Device(c10::DeviceType::PrivateUse1, c10::gpuclustersim::current_device());
 }
 
@@ -98,8 +99,9 @@ void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   c10::Device device = _infer_target_device(*stack);
   c10::DeviceIndex device_id = device.index();
   c10::StreamId stream_id = c10::gpuclustersim::getSimStream(device_id);
-  std::cout << "[Simulator] Intercepted: " << op.schema().name() << std::endl;
 
+
+  gcs::sim::submit_computation_op();
 
 
   torch::jit::Stack meta_stack = _cast_stack_to_device(*stack, c10::Device(c10::kMeta));
@@ -110,8 +112,8 @@ void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
     *stack = _cast_stack_to_device(meta_stack, device);
   }
   catch (const c10::Error& e) {
-    at::native::cpu_fallback(op, stack);
-    *stack = _cast_stack_to_device(*stack, device);
+    at::native::cpu_fallback(op, stack); // icky
+    *stack = _cast_stack_to_device(*stack, device); 
   }  
 }
 

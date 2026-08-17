@@ -1,5 +1,4 @@
-#include "sim_engine.h"
-#include "core/scheduler.h"
+#include "scheduler.h"
 #include <mutex>
 
 
@@ -37,7 +36,7 @@ void advance_current_stream_time(int device, int stream, double time) {
 }
 
 
-void schedule_op(int device, int stream, std::string name, double duration) {
+void schedule_op_on_timeline(int device, int stream, std::string name, double duration) {
   std::lock_guard<std::mutex> lock(mutex_);
   ensure_size(device, stream);
   auto& t = timeline[device][stream];

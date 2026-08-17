@@ -3,7 +3,7 @@
 
 def device_count():
     """Return the number of available simulated devices."""
-    return 1  # MVP: just 1 device
+    return 1 
 
 def current_device():
     """Return the index of the currently selected device."""

@@ -1,3 +1,5 @@
+#pragma once
+
 #ifdef _WIN32
   #define ENABLE_EXPORT __declspec(dllexport)
 #else

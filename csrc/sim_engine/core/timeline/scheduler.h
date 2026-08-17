@@ -16,8 +16,7 @@ struct StreamTimeline{
 
 double get_current_stream_time(int device, int stream);
 void advance_current_stream_time(int device, int stream, double time);
-void schedule_op(int device, int stream, std::string name, double duration); 
-
+void schedule_op_on_timeline(int device, int stream, std::string name, double duration); 
 std::vector<std::vector<StreamTimeline>> get_timeline();
 
 }
