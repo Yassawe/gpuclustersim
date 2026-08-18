@@ -1,8 +1,11 @@
-namespace gcs::sim::cost_models{
+#pragma once
+#include <utils/Macros.h>
 
-enum class OpFamily {
-  Unknown, GEMM, Conv, Elementwise, Reduction, Memory, Embedding, Attention
-};
+namespace gcs::sim::cost_models {
+
+// enum class OpFamily {
+//   Unknown, GEMM, Conv, Elementwise, Reduction, Memory, Embedding, Attention
+// };
 
 struct TensorSpec {
   std::vector<int64_t> sizes; 
@@ -15,7 +18,6 @@ struct OpSpec {
   std::vector<TensorSpec> inputs;
   std::vector<TensorSpec> outputs;
 };
-
 
 }
 

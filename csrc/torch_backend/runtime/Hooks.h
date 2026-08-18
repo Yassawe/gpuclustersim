@@ -1,3 +1,4 @@
+#pragma once
 #include <c10/core/Allocator.h>
 #include <ATen/core/CachingHostAllocator.h>
 #include <c10/core/Device.h>

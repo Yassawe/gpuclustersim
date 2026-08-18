@@ -1,3 +1,4 @@
+#pragma once
 #include <c10/core/Device.h>
 #include <utils/Macros.h>
 

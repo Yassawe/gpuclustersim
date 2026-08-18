@@ -1,3 +1,4 @@
+#pragma once
 #include <utils/Macros.h>
 
 namespace gcs::sim{

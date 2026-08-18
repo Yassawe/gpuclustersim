@@ -1,3 +1,4 @@
+#pragma once
 #include <c10/core/impl/DeviceGuardImplInterface.h>
 #include <c10/core/DeviceCapability.h>
 #include <c10/core/Device.h>

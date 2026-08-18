@@ -1,3 +1,4 @@
+#pragma once
 #include <ATen/CPUGeneratorImpl.h>
 #include <ATen/core/GeneratorForPrivateuseone.h>
 #include <c10/core/Device.h>

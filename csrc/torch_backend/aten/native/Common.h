@@ -1,3 +1,4 @@
+#pragma once
 #include <ATen/TensorOperators.h>
 #include <ATen/ops/_reshape_alias_native.h>
 #include <ATen/ops/as_strided_cpu_dispatch.h>

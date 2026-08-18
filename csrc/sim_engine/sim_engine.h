@@ -5,4 +5,4 @@
 #include "core/timeline/events.h"
 #include "core/controller.h"
 #include "cost_models/communication.h"
-#include "cost_models/computation.h"
+#include "cost_models/compute.h"
