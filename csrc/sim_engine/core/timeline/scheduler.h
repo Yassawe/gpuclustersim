@@ -6,12 +6,12 @@ namespace gcs::sim{
 
 struct ScheduledOp{
   std::string name;
-  double start_time;
-  double end_time;
+  double start_time; //us
+  double end_time; //us
 };
 
 struct StreamTimeline{
-  double current_time = 0;
+  double current_time = 0; //us
   std::vector<ScheduledOp> ops;
 };
 

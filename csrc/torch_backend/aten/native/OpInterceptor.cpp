@@ -96,6 +96,35 @@ torch::jit::Stack cast_stack_to_device(torch::jit::Stack& stack, c10::Device dev
   return new_stack;
 }
 
+
+gcs::sim::cost_models::DataType map_dtype(at::ScalarType st){
+  switch (st) {
+    case at::ScalarType::Double: return gcs::sim::cost_models::DataType::FP64;
+    case at::ScalarType::Float: return gcs::sim::cost_models::DataType::FP32;
+    case at::ScalarType::Half: return gcs::sim::cost_models::DataType::FP16;
+    case at::ScalarType::BFloat16: return gcs::sim::cost_models::DataType::FP16; 
+    case at::ScalarType::Float8_e5m2: return gcs::sim::cost_models::DataType::FP8;
+    case at::ScalarType::Float8_e4m3fn: return gcs::sim::cost_models::DataType::FP8;
+    case at::ScalarType::Float8_e5m2fnuz: return gcs::sim::cost_models::DataType::FP8;
+    case at::ScalarType::Float8_e4m3fnuz: return gcs::sim::cost_models::DataType::FP8;
+    case at::ScalarType::Float8_e8m0fnu: return gcs::sim::cost_models::DataType::FP8;
+                                       
+    case at::ScalarType::Byte: return gcs::sim::cost_models::DataType::INT8;
+    case at::ScalarType::Char: return gcs::sim::cost_models::DataType::INT8;
+    case at::ScalarType::Short: return gcs::sim::cost_models::DataType::INT16;
+    case at::ScalarType::Int: return gcs::sim::cost_models::DataType::INT32;
+    case at::ScalarType::Long: return gcs::sim::cost_models::DataType::INT64;
+    case at::ScalarType::UInt16: return gcs::sim::cost_models::DataType::INT16;
+    case at::ScalarType::UInt32: return gcs::sim::cost_models::DataType::INT32;
+    case at::ScalarType::UInt64: return gcs::sim::cost_models::DataType::INT64;
+
+    case at::ScalarType::Bool: return gcs::sim::cost_models::DataType::BOOL;
+
+    default: return gcs::sim::cost_models::DataType::Other;
+  }
+}
+
+
 std::vector<gcs::sim::cost_models::ArgSpec> capture_args(torch::jit::Stack& stack, const auto& arg_names){
 
   std::vector<gcs::sim::cost_models::ArgSpec> result;
@@ -114,7 +143,8 @@ std::vector<gcs::sim::cost_models::ArgSpec> capture_args(torch::jit::Stack& stac
       gcs::sim::cost_models::TensorSpec t_spec;
       t_spec.defined = t.defined();
       if(t.defined()){
-        t_spec.sizes = t.sizes().vec();
+        t_spec.dims = t.sizes().vec();
+        t_spec.dtype = map_dtype(t.scalar_type());
         t_spec.dtype_size = static_cast<int>(t.element_size());
       }
       arg.tensor = t_spec;
@@ -131,7 +161,8 @@ std::vector<gcs::sim::cost_models::ArgSpec> capture_args(torch::jit::Stack& stac
         gcs::sim::cost_models::TensorSpec t_spec;
         t_spec.defined = t.defined();
         if(t.defined()){
-          t_spec.sizes = t.sizes().vec();
+          t_spec.dims = t.sizes().vec();
+          t_spec.dtype = map_dtype(t.scalar_type());
           t_spec.dtype_size = static_cast<int>(t.element_size());
         }
         t_spec_list.push_back(t_spec);
@@ -145,15 +176,15 @@ std::vector<gcs::sim::cost_models::ArgSpec> capture_args(torch::jit::Stack& stac
       gcs::sim::cost_models::ScalarSpec s_spec;
 
       if (iv.isInt()){
-        s_spec.type = gcs::sim::cost_models::ScalarSpec::Type::Int; 
+        s_spec.dtype = gcs::sim::cost_models::DataType::INT32; 
         s_spec.value = static_cast<double>(iv.toInt()); 
       }
       else if (iv.isDouble()){
-        s_spec.type = gcs::sim::cost_models::ScalarSpec::Type::Float;
+        s_spec.dtype = gcs::sim::cost_models::DataType::FP32;
         s_spec.value = iv.toDouble();
       }
       else if (iv.isBool()){
-        s_spec.type = gcs::sim::cost_models::ScalarSpec::Type::Bool;
+        s_spec.dtype = gcs::sim::cost_models::DataType::BOOL;
         s_spec.value = iv.toBool() ? 1.0 : 0.0;
       }
 
@@ -165,17 +196,17 @@ std::vector<gcs::sim::cost_models::ArgSpec> capture_args(torch::jit::Stack& stac
 
       if (iv.isIntList()){
         for (int v : iv.toIntList()) {
-          s_spec_list.push_back({gcs::sim::cost_models::ScalarSpec::Type::Int, static_cast<double>(v)});
+          s_spec_list.push_back({gcs::sim::cost_models::DataType::INT32, static_cast<double>(v)});
         }
       }
       else if (iv.isDoubleList()) {
         for (double v : iv.toDoubleList()){
-          s_spec_list.push_back({gcs::sim::cost_models::ScalarSpec::Type::Float, v});
+          s_spec_list.push_back({gcs::sim::cost_models::DataType::FP32, v});
         }
       }
       else if (iv.isBoolList()) {
         for (bool v : iv.toBoolList()){
-          s_spec_list.push_back({gcs::sim::cost_models::ScalarSpec::Type::Bool, (v ? 1.0 : 0.0)});
+          s_spec_list.push_back({gcs::sim::cost_models::DataType::BOOL, (v ? 1.0 : 0.0)});
         }
       }
 
@@ -219,7 +250,8 @@ void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   
   gcs::sim::cost_models::OpSpec op_spec = {op.schema().name(), op.schema().overload_name(), inputs, outputs};
 
-  gcs::sim::submit_compute_op(static_cast<int>(device_id), static_cast<int>(stream_id), op_spec);
+  // sim_engine/core/controller.cpp
+  gcs::sim::submit_compute_op(static_cast<int>(device_id), static_cast<int>(stream_id), op_spec); 
 
 }
 

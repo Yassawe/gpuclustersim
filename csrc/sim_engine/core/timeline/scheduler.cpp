@@ -6,7 +6,7 @@ namespace gcs::sim {
 
 static std::mutex mutex_;
 
-static std::vector<std::vector<StreamTimeline>> timeline;
+static std::vector<std::vector<StreamTimeline>> timeline; // [device][stream] = StreamTimeline
 
 static void ensure_size(int device, int stream) {
   if (device < 0) device = 0;
