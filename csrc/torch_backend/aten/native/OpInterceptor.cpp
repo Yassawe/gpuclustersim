@@ -7,6 +7,9 @@
 
 namespace at::native::gpuclustersim {
 
+// helper functions may look complicated, but all they do is traverse an execution stack and do actions based on the type 
+// of IValue encountered. for more info look at: Aten/core/stack.h, Aten/core/ivalue.h, Aten/core/function_schema.h in torch 
+
 c10::Device infer_target_device(torch::jit::Stack& stack){
   // honestly i am not sure if this is even non redundant and if current_device() would have worked fine. this is mostly
   // precaution, maybe wasteful. I don't know whether there is a guarantee that torch always uses guard to set_device() 
@@ -199,7 +202,8 @@ void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
 
   std::vector<gcs::sim::cost_models::ArgSpec> inputs = capture_args(*stack, op.schema().arguments());
 
-
+  // functional correctness part, cast to meta, redispatch to get output shapes, cast back for coninuity
+  // if meta implementation is lacking for that op, fallback to cpu 
   torch::jit::Stack meta_stack = cast_stack_to_device(*stack, c10::Device(c10::kMeta));
   try {
     c10::DispatchKeySet meta_ks(c10::DispatchKey::Meta);
@@ -207,7 +211,7 @@ void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
     *stack = cast_stack_to_device(meta_stack, device);
   }
   catch (const c10::Error& e) {
-    at::native::cpu_fallback(op, stack); // icky
+    at::native::cpu_fallback(op, stack); // icky, todo: investigate
     *stack = cast_stack_to_device(*stack, device); 
   }  
 
