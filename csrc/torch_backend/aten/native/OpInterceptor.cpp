@@ -7,17 +7,16 @@
 
 namespace at::native::gpuclustersim {
 
-// helper functions may look complicated, but all they do is traverse an execution stack and do actions based on the type 
-// of IValue encountered. for more info look at: Aten/core/stack.h, Aten/core/ivalue.h, Aten/core/function_schema.h in torch 
+// helper functions may look complicated, but all they do is traverse an execution stack and do actions based on the 
+// type of IValue encountered. for more info look at: Aten/core/stack.h, Aten/core/ivalue.h, Aten/core/function_schema.h in torch 
 
 c10::Device infer_target_device(torch::jit::Stack& stack){
-  // honestly i am not sure if this is even non redundant and if current_device() would have worked fine. this is mostly
+  // honestly i am not sure if this is even non redundant and if gcsCurrentDevice() would have worked fine. this is mostly
   // precaution, maybe wasteful. I don't know whether there is a guarantee that torch always uses guard to set_device() 
   // before any op can be dispatched.
 
   int num_entries = stack.size();
 
-  // first try to infer from explicit device member of the stack
   for(int i=0; i<num_entries; i++){ 
     c10::IValue& iv = stack[i];
     if (iv.isDevice()){
@@ -25,7 +24,6 @@ c10::Device infer_target_device(torch::jit::Stack& stack){
     }
   }
 
-  // then try to infer from allocated tensors
   for(int i=0; i<num_entries; i++){
     c10::IValue& iv = stack[i];
     if (iv.isTensor()) {
@@ -44,8 +42,8 @@ c10::Device infer_target_device(torch::jit::Stack& stack){
     }
   }
 
-  // fallback to default current device getter
-  return c10::Device(c10::DeviceType::PrivateUse1, c10::gpuclustersim::current_device());
+  // fallback to default current device getter if everything else failed
+  return c10::Device(c10::DeviceType::PrivateUse1, c10::gpuclustersim::gcsCurrentDevice());
 }
 
 
@@ -103,7 +101,7 @@ gcs::sim::cost_models::DataType map_dtype(at::ScalarType st){
     case at::ScalarType::Float: return gcs::sim::cost_models::DataType::FP32;
     case at::ScalarType::Half: return gcs::sim::cost_models::DataType::FP16;
     case at::ScalarType::BFloat16: return gcs::sim::cost_models::DataType::FP16; 
-    case at::ScalarType::Float8_e5m2: return gcs::sim::cost_models::DataType::FP8;
+    case at::ScalarType::Float8_e5m2: return gcs::sim::cost_models::DataType::FP8; 
     case at::ScalarType::Float8_e4m3fn: return gcs::sim::cost_models::DataType::FP8;
     case at::ScalarType::Float8_e5m2fnuz: return gcs::sim::cost_models::DataType::FP8;
     case at::ScalarType::Float8_e4m3fnuz: return gcs::sim::cost_models::DataType::FP8;
@@ -114,7 +112,7 @@ gcs::sim::cost_models::DataType map_dtype(at::ScalarType st){
     case at::ScalarType::Short: return gcs::sim::cost_models::DataType::INT16;
     case at::ScalarType::Int: return gcs::sim::cost_models::DataType::INT32;
     case at::ScalarType::Long: return gcs::sim::cost_models::DataType::INT64;
-    case at::ScalarType::UInt16: return gcs::sim::cost_models::DataType::INT16;
+    case at::ScalarType::UInt16: return gcs::sim::cost_models::DataType::INT16; //unsigned are same costwise&memorywise
     case at::ScalarType::UInt32: return gcs::sim::cost_models::DataType::INT32;
     case at::ScalarType::UInt64: return gcs::sim::cost_models::DataType::INT64;
 
@@ -229,7 +227,7 @@ void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
 
   c10::Device device = infer_target_device(*stack);
   c10::DeviceIndex device_id = device.index();
-  c10::StreamId stream_id = c10::gpuclustersim::getSimStream(device_id);
+  c10::StreamId stream_id = c10::gpuclustersim::gcsGetStream(device_id);
 
   std::vector<gcs::sim::cost_models::ArgSpec> inputs = capture_args(*stack, op.schema().arguments());
 
@@ -246,6 +244,7 @@ void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
     *stack = cast_stack_to_device(*stack, device); 
   }  
 
+  // after dispatch the stack contains outputs
   std::vector<gcs::sim::cost_models::ArgSpec> outputs = capture_args(*stack, op.schema().returns());
   
   gcs::sim::cost_models::OpSpec op_spec = {op.schema().name(), op.schema().overload_name(), inputs, outputs};

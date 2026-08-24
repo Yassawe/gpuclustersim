@@ -4,10 +4,10 @@
 
 namespace c10::gpuclustersim {
 
-void recordSimEvent(void** event, DeviceIndex device_id, StreamId stream_id);
-void blockSimEvent(void* event, DeviceIndex device_id, StreamId stream_id);
-bool querySimEvent(void* event); 
-double simEventElapsedTime(void* event1, void* event2);
-void destroySimEvent(void* event);
+void gcsRecordEvent(void** event, DeviceIndex device_id, StreamId stream_id);
+void gcsBlockEvent(void* event, DeviceIndex device_id, StreamId stream_id);
+bool gcsQueryEvent(void* event); 
+double gcsEventElapsedTime(void* event1, void* event2);
+void gcsDestroyEvent(void* event);
 
 } 

@@ -6,7 +6,7 @@
 
 namespace c10::gpuclustersim {
 
-class SimHooksInterface : public at::PrivateUse1HooksInterface {
+class GCSHooksInterface : public at::PrivateUse1HooksInterface {
 
   bool hasPrimaryContext(DeviceIndex device_id) const override {return true;}
   bool isAvailable() const override {return true;}

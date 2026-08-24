@@ -5,13 +5,13 @@
 
 namespace c10::gpuclustersim {
   
-class DummyGenerator : public at::CPUGeneratorImpl {
+class GCSGenerator : public at::CPUGeneratorImpl {
   public:
-    DummyGenerator(DeviceIndex device_id) {
+    GCSGenerator(DeviceIndex device_id) {
       device_ = Device(c10::DeviceType::PrivateUse1, device_id);
       key_set_ = c10::DispatchKeySet(c10::DispatchKey::PrivateUse1);
     }
-    ~DummyGenerator() override = default;
+    ~GCSGenerator() override = default;
   };
 
 const at::Generator& getGenerator(DeviceIndex device_id);

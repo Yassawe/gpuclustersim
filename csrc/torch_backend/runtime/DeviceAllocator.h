@@ -14,10 +14,10 @@
 namespace c10::gpuclustersim {
 
 
-class DummyAllocator : public c10::Allocator{
+class GCSDeviceAllocator : public c10::Allocator{
 
 public:
-  DummyAllocator();
+  GCSDeviceAllocator();
 
   at::DataPtr allocate(size_t nbytes) override;
   static void deallocate(void* ptr);

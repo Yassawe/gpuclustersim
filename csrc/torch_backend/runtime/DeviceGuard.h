@@ -7,7 +7,7 @@
 
 namespace c10::gpuclustersim {
 
-class SimGuard : public c10::impl::DeviceGuardImplInterface { 
+class GCSDeviceGuard : public c10::impl::DeviceGuardImplInterface { 
 
   static constexpr c10::DeviceType static_type = c10::DeviceType::PrivateUse1;
   
