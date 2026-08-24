@@ -19,9 +19,14 @@ struct ENABLE_EXPORT ArgSpec {
  
 struct ENABLE_EXPORT OpSpec {
   std::string name;
-  std::string overload_name;
   std::vector<ArgSpec> inputs;
   std::vector<ArgSpec> outputs;
+};
+
+struct OpCost{
+  int64_t flops; // total flops of the op
+  int64_t bytes; // memory bandwidth cost, it is not 1 to 1 to just size, e.g. matmul reads twice writes once
+  DataType dominant_dtype; 
 };
 
 double estimate_compute_duration(OpSpec& op_spec, DeviceSpec& device_spec);

@@ -247,7 +247,7 @@ void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   // after dispatch the stack contains outputs
   std::vector<gcs::sim::cost_models::ArgSpec> outputs = capture_args(*stack, op.schema().returns());
   
-  gcs::sim::cost_models::OpSpec op_spec = {op.schema().name(), op.schema().overload_name(), inputs, outputs};
+  gcs::sim::cost_models::OpSpec op_spec = {op.schema().name(), inputs, outputs};
 
   // sim_engine/core/controller.cpp
   gcs::sim::submit_compute_op(static_cast<int>(device_id), static_cast<int>(stream_id), op_spec); 
