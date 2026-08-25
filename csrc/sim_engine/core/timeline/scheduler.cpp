@@ -1,5 +1,6 @@
 #include "scheduler.h"
 #include <mutex>
+#include <string>
 
 
 namespace gcs::sim {

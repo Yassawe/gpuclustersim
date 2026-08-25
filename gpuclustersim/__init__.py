@@ -9,7 +9,7 @@ if sys.platform == "win32":
     _load_dll_libraries()
     del _load_dll_libraries
 
-import gpuclustersim._C  # type: ignore[misc]
+import gpuclustersim._C 
 import gpuclustersim.module
 
 

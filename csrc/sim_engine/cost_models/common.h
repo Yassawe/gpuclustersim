@@ -16,16 +16,4 @@ enum class ENABLE_EXPORT DataType {
     Other
 };
 
-struct ENABLE_EXPORT TensorSpec {
-  std::vector<int64_t> dims; 
-  DataType dtype;
-  int dtype_size;
-  bool defined = true;
-};
-
-struct ENABLE_EXPORT ScalarSpec {
-  DataType dtype;
-  double value = 0; // scalars in torch stack are things like stride, kernel_size, etc, so i do actually need to know them
-};
-
 }

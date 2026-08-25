@@ -144,6 +144,7 @@ std::vector<gcs::sim::cost_models::ArgSpec> capture_args(torch::jit::Stack& stac
         t_spec.dims = t.sizes().vec();
         t_spec.dtype = map_dtype(t.scalar_type());
         t_spec.dtype_size = static_cast<int>(t.element_size());
+        t_spec.numel = t.numel();
       }
       arg.tensor = t_spec;
     }
@@ -162,6 +163,7 @@ std::vector<gcs::sim::cost_models::ArgSpec> capture_args(torch::jit::Stack& stac
           t_spec.dims = t.sizes().vec();
           t_spec.dtype = map_dtype(t.scalar_type());
           t_spec.dtype_size = static_cast<int>(t.element_size());
+          t_spec.numel = t.numel();
         }
         t_spec_list.push_back(t_spec);
       }

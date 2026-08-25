@@ -1,7 +1,5 @@
 #include <Python.h>
 
-// stub.c is compiled by setup.py separately from cmake, so needs to include all it needs explicitly.
-
 #ifdef _WIN32
 #define ENABLE_EXPORT __declspec(dllexport)
 #else

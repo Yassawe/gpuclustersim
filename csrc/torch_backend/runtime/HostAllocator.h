@@ -4,7 +4,7 @@
 
 // providing hostalloc for pinned memory just in case, so that it doesn't raise exception in some training scripts that use it
 // this is just a stub it does nothing, fancy malloc wrapper
-// allocating real memory should be fine here since pinned host memory is short lived and shouldn't take much space, it is batch data not params
+// allocating real memory should be fine here since pinned host memory is short lived and shouldn't take much space, it is batch data not params. this likely will be the largest source of simulator runtime memory consumption
 
 namespace c10::gpuclustersim {
 

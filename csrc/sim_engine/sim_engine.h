@@ -1,4 +1,4 @@
-// this is the file that torch_backend/ imports
+// umbrella header that other two libs import
 #pragma once
 #include "core/platform/device.h"
 #include "core/platform/memory.h"
