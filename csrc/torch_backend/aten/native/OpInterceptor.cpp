@@ -227,6 +227,9 @@ std::vector<gcs::sim::cost_models::ArgSpec> capture_args(torch::jit::Stack& stac
 void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
 
 
+  std::cout<<"Op Name: " << op.schema().name() << std::endl;
+
+
   c10::Device device = infer_target_device(*stack);
   c10::DeviceIndex device_id = device.index();
   c10::StreamId stream_id = c10::gpuclustersim::gcsGetStream(device_id);

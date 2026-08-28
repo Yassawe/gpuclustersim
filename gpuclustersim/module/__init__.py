@@ -20,6 +20,3 @@ def get_device_properties(device):
 def synchronize(device=None):
     """Synchronize the device (MVP: no-op)."""
     pass
-
-# Any other function the original torch_openreg.openreg had can be a dummy here.
-# For a minimum, device_count, current_device, and set_device are the hard requirements.

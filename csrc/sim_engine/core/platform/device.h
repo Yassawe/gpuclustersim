@@ -8,7 +8,6 @@ struct DeviceSpec {
   double fp32_tflops;
   double fp16_tflops;
   double fp8_tflops;
-  double int_tops; // for int operations
 
   double mem_size; //gb
   double mem_bandwidth; //gb/s

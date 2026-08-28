@@ -38,7 +38,7 @@ struct ENABLE_EXPORT OpSpec {
 
 struct OpCost{
   int64_t flops; // total flops of the op
-  int64_t bytes; // memory bandwidth cost, it is not 1 to 1 to just tensor size, e.g. matmul reads twice writes once
+  int64_t bytes; // memory bandwidth cost, reads and writes
   DataType dominant_dtype; 
 };
 

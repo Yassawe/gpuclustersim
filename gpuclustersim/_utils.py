@@ -4,7 +4,7 @@ import os
 
 
 def _load_dll_libraries() -> None:
-    openreg_dll_path = os.path.join(os.path.dirname(__file__), "lib")
+    dll_path = os.path.join(os.path.dirname(__file__), "lib")
 
     kernel32 = ctypes.WinDLL("kernel32.dll", use_last_error=True)
     with_load_library_flags = hasattr(kernel32, "AddDllDirectory")
@@ -14,9 +14,9 @@ def _load_dll_libraries() -> None:
     if with_load_library_flags:
         kernel32.LoadLibraryExW.restype = ctypes.c_void_p
 
-    os.add_dll_directory(openreg_dll_path)
+    os.add_dll_directory(dll_path)
 
-    dlls = glob.glob(os.path.join(openreg_dll_path, "*.dll"))
+    dlls = glob.glob(os.path.join(dll_path, "*.dll"))
     path_patched = False
     for dll in dlls:
         is_loaded = False
@@ -31,7 +31,7 @@ def _load_dll_libraries() -> None:
                 is_loaded = True
         if not is_loaded:
             if not path_patched:
-                os.environ["PATH"] = ";".join([openreg_dll_path] + [os.environ["PATH"]])
+                os.environ["PATH"] = ";".join([dll_path] + [os.environ["PATH"]])
                 path_patched = True
             res = kernel32.LoadLibraryW(dll)
             if res is None:
