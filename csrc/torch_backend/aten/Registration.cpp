@@ -124,6 +124,19 @@ TORCH_LIBRARY_IMPL(aten, PrivateUse1, m) {
       "set_.source_Storage_storage_offset",
       wrapper_set_source_Storage_storage_offsetset_);
   m.impl("view", wrapper_view);
+  m.impl(
+      "convolution_overrideable",
+      torch::CppFunction::makeFromBoxedFunction<&wrapper_op_interceptor>());
+  m.impl(
+      "convolution_backward_overrideable",
+      torch::CppFunction::makeFromBoxedFunction<&wrapper_op_interceptor>());
+}
+
+TORCH_LIBRARY_IMPL(aten, Meta, m) {
+  m.impl("convolution_overrideable",
+      at::native::gpuclustersim::meta_convolution_overrideable);
+  m.impl("convolution_backward_overrideable",
+      at::native::gpuclustersim::meta_convolution_backward_overrideable);
 }
 
 TORCH_LIBRARY_IMPL(_, PrivateUse1, m) {

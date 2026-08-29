@@ -3,6 +3,8 @@
 #include <vector>
 #include <unordered_map>
 #include <functional>
+#include <iostream>
+#include <algorithm>
 
 
 namespace gcs::sim::cost_models {
@@ -29,6 +31,20 @@ int64_t total_tensor_bytes(std::vector<ArgSpec>& args){
     total+=tensor_bytes(arg);
   }
   return total;
+}
+
+int64_t tensor_numel(ArgSpec& arg){
+  if (arg.type == ArgSpec::Type::Tensor && arg.tensor.defined){
+    return arg.tensor.numel;
+  }
+  if (arg.type == ArgSpec::Type::TensorList){
+    int64_t total = 0;
+    for (TensorSpec t : arg.tensor_list){
+      if (t.defined) total+=t.numel;
+    }
+    return total;
+  }
+  return 0;
 }
 
 DataType get_dominant_dtype(std::vector<ArgSpec>& args){
@@ -72,7 +88,7 @@ OpCost mm_cost(OpSpec& op_spec){
 
   int64_t M = self.tensor.dims[0];
   int64_t K = self.tensor.dims[1];
-  int64_t N = mat2.tensor.dims[0];
+  int64_t N = mat2.tensor.dims[1];
 
   int64_t flops = 2*M*N*K;
   int64_t bytes = tensor_bytes(self) + tensor_bytes(mat2) + tensor_bytes(out);
@@ -89,7 +105,7 @@ OpCost addmm_cost(OpSpec& op_spec){
   ArgSpec mat2 = op_spec.inputs[2];
   ArgSpec out = op_spec.outputs[0];
 
-  int64_t M = self.tensor.dims[0];
+  int64_t M = mat1.tensor.dims[0];
   int64_t K = mat1.tensor.dims[1];
   int64_t N = self.tensor.dims[0];
 
@@ -145,14 +161,13 @@ OpCost baddbmm_cost(OpSpec& op_spec){
 OpCost conv_cost(OpSpec& op_spec){
   // (Tensor input, Tensor weight, Tensor? bias, SymInt[] stride, SymInt[] padding, SymInt[] dilation, bool transposed, SymInt[] output_padding, SymInt groups) -> Tensor
   // input: (N, C_in, ..., *S_in), weight: (C_out, C_in/groups, ..., *K) -> out: (N, C_out, ..., *S_out)
-  // transposed variants are the same but first 2 dims switched in weight (C_in, C_out/groups), formulas are symmetric
 
   ArgSpec input = op_spec.inputs[0];
   ArgSpec weight = op_spec.inputs[1];
   ArgSpec out = op_spec.outputs[0];
 
   int64_t N = input.tensor.dims[0];
-  int64_t C = weight.tensor.dims[0]+weight.tensor.dims[1]; // C_out*C_in/groups
+  int64_t C = weight.tensor.dims[0]*weight.tensor.dims[1]; // C_out*C_in/groups
 
   int64_t K = 1;
   for (int i=2; i<weight.tensor.dims.size(); i++) K*=weight.tensor.dims[i];
@@ -174,7 +189,7 @@ OpCost conv_backward_cost(OpSpec& op_spec){
   ArgSpec grad_output = op_spec.inputs[0];
   ArgSpec input = op_spec.inputs[1];
   ArgSpec weight = op_spec.inputs[2];
-  ArgSpec mask = op_spec.inputs[10];
+  ArgSpec mask = op_spec.inputs.back();
 
   ArgSpec dX = op_spec.outputs[0];
   ArgSpec dW = op_spec.outputs[1];
@@ -207,67 +222,90 @@ OpCost conv_backward_cost(OpSpec& op_spec){
 // ATTENTION
 
 OpCost attention_cost(OpSpec& op_spec){
-  // 
-
-
+  // (Tensor query, Tensor key, Tensor value, ... params) -> (bunch of outputs, dominated by 1 big tensor)
+  // query, key, value: (B, H, S_q/k/v, D) -> out: (B, H, S_q, D)
   ArgSpec Q = op_spec.inputs[0];
-  
+  ArgSpec K = op_spec.inputs[1];
+  ArgSpec V = op_spec.inputs[2];
+  ArgSpec out = op_spec.outputs[0];
+
+  int64_t B = Q.tensor.dims[0];
+  int64_t H = Q.tensor.dims[1];
+  int64_t S_q = Q.tensor.dims[2];
+  int64_t S_k = K.tensor.dims[2];
+  int64_t S_v = V.tensor.dims[2];
+  int64_t D = Q.tensor.dims[3];
+
+  int64_t flops = 4*B*H*S_q*S_k*D;
+  int64_t bytes = tensor_bytes(Q) + tensor_bytes(K) + tensor_bytes(V) + tensor_bytes(out);
 
 
-  return OpCost{0, 0, get_dominant_dtype(op_spec.inputs)};
+  return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
 }
 
 OpCost attention_backward_cost(OpSpec& op_spec){
-  return OpCost{0, 0, get_dominant_dtype(op_spec.inputs)};
+  // (Tensor grad_out, Tensor query, Tensor key, Tensor value, ... params) -> (bunch of outputs, 3 grads)
+  // grad_output: (B, H, S_q, D), query, key, value: (B, H, S_q/k/v, D) -> dQ, dK, dV: (B, H, S_q/k/v, D)
+
+  ArgSpec grad_out = op_spec.inputs[0];
+  ArgSpec Q = op_spec.inputs[1];
+  ArgSpec K = op_spec.inputs[2];
+  ArgSpec V = op_spec.inputs[3];
+
+  int64_t B  = Q.tensor.dims[0];
+  int64_t H  = Q.tensor.dims[1];
+  int64_t S_q = Q.tensor.dims[2];
+  int64_t S_k = K.tensor.dims[2];
+  int64_t S_v = V.tensor.dims[2];
+  int64_t D  = Q.tensor.dims[3];
+
+  int64_t flops = 8*B*H*S_q*S_k*D;
+  int64_t bytes = tensor_bytes(grad_out) + tensor_bytes(Q) + tensor_bytes(K) + tensor_bytes(V)
+                  + total_tensor_bytes(op_spec.outputs);
+
+  return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
 }
 
 // NORM
+OpCost norm_cost(OpSpec& op_spec){
 
-OpCost layer_norm_cost(OpSpec& op_spec){
-  int64_t flops=0;
-  int64_t bytes=0;
-  return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
 }
 
-OpCost batch_norm_cost(OpSpec& op_spec){
-  int64_t flops=0;
-  int64_t bytes=0;
-  return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
+OpCost pool_cost(OpSpec& op_spec){
+
 }
 
-OpCost group_norm_cost(OpSpec& op_spec){
-  int64_t flops=0;
-  int64_t bytes=0;
-  return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
-}
-
-OpCost instance_norm_cost(OpSpec& op_spec){
-  int64_t flops=0;
-  int64_t bytes=0;
-  return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
-}
 
 // MISC
 
 OpCost elementwise_cost(OpSpec& op_spec){
-  int64_t flops=0;
-  int64_t bytes=0;
+  // (Tensor self) -> Tensor
+  
+  ArgSpec self = op_spec.inputs[0];
+  ArgSpec out = op_spec.outputs[0];
+  
+  int64_t passes = 1; // single fused pass over the output for a pure elementwise op
+  int64_t flops = passes*out.tensor.numel;
+  int64_t bytes = tensor_bytes(self) + tensor_bytes(out);
+
   return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
 }
 
 
 OpCost reduction_cost(OpSpec& op_spec){
-  int64_t flops=0;
-  int64_t bytes=0;
+  // (Tensor self, ...) -> Tensor, like elementwise except the input<->output can be different shapes, i.e. transformed
+
+  ArgSpec self = op_spec.inputs[0];
+  ArgSpec out = op_spec.outputs[0];
+
+  int64_t flops = std::max(self.tensor.numel, out.tensor.numel);
+  int64_t bytes = tensor_bytes(self) + tensor_bytes(out);
+
   return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
 }
 
 
-OpCost pool_cost(OpSpec& op_spec){
-  int64_t flops=0;
-  int64_t bytes=0;
-  return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
-}
+
 
 
 OpCost embedding_cost(OpSpec& op_spec){
@@ -296,7 +334,6 @@ OpCost cost_router(OpSpec& op_spec){
     {"aten::addmm", addmm_cost},
     {"aten::bmm", bmm_cost},
     {"aten::baddbmm", baddbmm_cost},
-    {"aten::_scaled_mm", mm_cost},
 
     //conv
     {"aten::conv1d", conv_cost},
@@ -307,12 +344,9 @@ OpCost cost_router(OpSpec& op_spec){
     {"aten::conv_transpose3d", conv_cost},
     {"aten::convolution", conv_cost},
     {"aten::_convolution", conv_cost},
-    {"aten::_slow_conv2d_forward", conv_cost},
+    {"aten::convolution_backward", conv_backward_cost},
     {"aten::convolution_overrideable", conv_cost},
     {"aten::convolution_backward_overrideable", conv_backward_cost},
-    {"aten::_slow_conv2d_backward", conv_backward_cost}, 
-    {"aten::convolution_backward", conv_backward_cost},
-    {"aten::_convolution_double_backward", conv_backward_cost}, 
 
     //attention
     {"aten::_scaled_dot_product_efficient_attention", attention_cost},
@@ -326,81 +360,88 @@ OpCost cost_router(OpSpec& op_spec){
     {"aten::_flash_attention_backward", attention_backward_cost},
     {"aten::_efficient_attention_backward", attention_backward_cost},
 
-    //norm
-    {"aten::native_batch_norm", batch_norm_cost},
-    {"aten::native_batch_norm_backward", batch_norm_cost}, 
-    {"aten::batch_norm_backward", batch_norm_cost}, 
-    {"aten::native_layer_norm", layer_norm_cost},
-    {"aten::native_layer_norm_backward", layer_norm_cost}, 
-    {"aten::native_group_norm", group_norm_cost},
-    {"aten::native_group_norm_backward", group_norm_cost}, 
-    {"aten::instance_norm", instance_norm_cost},
-
     //elementwise
     {"aten::relu", elementwise_cost},
-    {"aten::relu_", elementwise_cost},
     {"aten::threshold_backward", elementwise_cost}, 
     {"aten::gelu", elementwise_cost},
     {"aten::gelu_backward", elementwise_cost}, 
     {"aten::silu", elementwise_cost},
-    {"aten::silu_", elementwise_cost},
-    {"aten::silu_backward", elementwise_cost}, 
-    {"aten::softmax", elementwise_cost},
     {"aten::_softmax", elementwise_cost},
     {"aten::_softmax_backward_data", elementwise_cost}, 
-    {"aten::log_softmax", elementwise_cost},
     {"aten::_log_softmax", elementwise_cost},
     {"aten::_log_softmax_backward_data", elementwise_cost}, 
     {"aten::tanh", elementwise_cost},
-    {"aten::tanh_", elementwise_cost},
     {"aten::tanh_backward", elementwise_cost}, 
     {"aten::sigmoid", elementwise_cost},
-    {"aten::sigmoid_", elementwise_cost},
     {"aten::sigmoid_backward", elementwise_cost}, 
     {"aten::add", elementwise_cost},
-    {"aten::add_", elementwise_cost},
     {"aten::mul", elementwise_cost},
-    {"aten::mul_", elementwise_cost},
     {"aten::div", elementwise_cost},
-    {"aten::div_", elementwise_cost},
     {"aten::sub", elementwise_cost},
-    {"aten::sub_", elementwise_cost},
     {"aten::pow", elementwise_cost},
-    {"aten::pow_", elementwise_cost},
     {"aten::sqrt", elementwise_cost},
-    {"aten::sqrt_", elementwise_cost},
     {"aten::rsqrt", elementwise_cost},
-    {"aten::rsqrt_", elementwise_cost},
     {"aten::reciprocal", elementwise_cost},
-    {"aten::reciprocal_", elementwise_cost},
     {"aten::neg", elementwise_cost},
-    {"aten::neg_", elementwise_cost},
     {"aten::abs", elementwise_cost},
-    {"aten::abs_", elementwise_cost},
+    {"aten::exp", elementwise_cost},
+    {"aten::log", elementwise_cost},
+    {"aten::sin", elementwise_cost},
+    {"aten::cos", elementwise_cost},
+    {"aten::erf", elementwise_cost},
+    {"aten::clamp", elementwise_cost},
+    {"aten::addcmul", elementwise_cost},
+    {"aten::where", elementwise_cost},
+    {"aten::isneginf", elementwise_cost},
+    {"aten::fill_", elementwise_cost},
+    {"aten::zero_", elementwise_cost},
+    {"aten::native_dropout", elementwise_cost},
+    {"aten::native_dropout_backward", elementwise_cost},
+    {"aten::_thnn_fused_lstm_cell_backward_impl", elementwise_cost},
+    {"aten::cat", elementwise_cost},                  
+    {"aten::gather", elementwise_cost},           
+    {"aten::index_select", elementwise_cost},
+    {"aten::_thnn_fused_lstm_cell", elementwise_cost},  
 
     //reduction
     {"aten::sum", reduction_cost},
     {"aten::mean", reduction_cost},
+    {"aten::all", reduction_cost},
+    {"aten::amax", reduction_cost},
+    {"aten::amin", reduction_cost},
+    {"aten::argmax", reduction_cost},
+    {"aten::max", reduction_cost},
+    {"aten::min", reduction_cost},
+    {"aten::std", reduction_cost},
+    {"aten::var", reduction_cost},
+    {"aten::var_mean", reduction_cost},
+    {"aten::sort", reduction_cost},
+    {"aten::topk", reduction_cost},
+
+
+    //norm
+    {"aten::native_batch_norm", norm_cost},
+    {"aten::native_batch_norm_backward", norm_cost},
+    {"aten::native_layer_norm", norm_cost},
+    {"aten::native_layer_norm_backward", norm_cost},
+    {"aten::native_group_norm", norm_cost}, 
+    {"aten::native_group_norm_backward", norm_cost},
 
     //pooling
-    {"aten::max_pool2d", pool_cost},
-    {"aten::max_pool2d_backward", pool_cost}, 
     {"aten::max_pool2d_with_indices", pool_cost},
     {"aten::max_pool2d_with_indices_backward", pool_cost}, 
     {"aten::avg_pool2d", pool_cost},
+    {"aten::_adaptive_avg_pool2d", pool_cost}, 
     {"aten::avg_pool2d_backward", pool_cost}, 
-    {"aten::adaptive_avg_pool2d", pool_cost},
     {"aten::_adaptive_avg_pool2d_backward", pool_cost}, 
 
     // misc
     {"aten::embedding", embedding_cost},
     {"aten::embedding_dense_backward", embedding_cost}, 
-    {"aten::cross_entropy_loss", loss_cost},
     {"aten::nll_loss_forward", loss_cost},
     {"aten::nll_loss_backward", loss_cost}, 
     {"aten::mse_loss", loss_cost},
     {"aten::mse_loss_backward", loss_cost}, 
-    {"aten::l1_loss", loss_cost},
     {"aten::smooth_l1_loss", loss_cost},
     {"aten::smooth_l1_loss_backward", loss_cost}, 
   };
@@ -424,10 +465,15 @@ double duration_fn(OpCost& op_cost, DeviceSpec& device_spec){
 
 
 double estimate_compute_duration(OpSpec& op_spec, DeviceSpec& device_spec){
-  OpCost op_cost = cost_router(op_spec);
-  double duration = duration_fn(op_cost, device_spec);
-  return duration;
-
+  try{
+    OpCost op_cost = cost_router(op_spec);
+    double duration = duration_fn(op_cost, device_spec);
+    return duration;
+  }
+  catch(...){
+    std::cout<<"compute cost function error on op: "<<op_spec.name<<std::endl;
+    return 0;
+  }
 }
 
 }

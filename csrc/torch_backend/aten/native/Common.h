@@ -1,4 +1,6 @@
 #pragma once
+#include <array>
+#include <tuple>
 #include <ATen/TensorOperators.h>
 #include <ATen/ops/_reshape_alias_native.h>
 #include <ATen/ops/as_strided_cpu_dispatch.h>
@@ -64,6 +66,29 @@ at::Tensor& set_source_Storage_storage_offset_(
   c10::IntArrayRef stride);
 
 at::Tensor view(const at::Tensor& self, c10::SymIntArrayRef size);
+
+at::Tensor meta_convolution_overrideable(
+  const at::Tensor& input,
+  const at::Tensor& weight,
+  const std::optional<at::Tensor>& bias,
+  c10::SymIntArrayRef stride,
+  c10::SymIntArrayRef padding,
+  c10::SymIntArrayRef dilation,
+  bool transposed,
+  c10::SymIntArrayRef output_padding,
+  c10::SymInt groups);
+
+std::tuple<at::Tensor, at::Tensor, at::Tensor> meta_convolution_backward_overrideable(
+  const at::Tensor& grad_output,
+  const at::Tensor& input,
+  const at::Tensor& weight,
+  c10::SymIntArrayRef stride,
+  c10::SymIntArrayRef padding,
+  c10::SymIntArrayRef dilation,
+  bool transposed,
+  c10::SymIntArrayRef output_padding,
+  c10::SymInt groups,
+  ::std::array<bool, 3> output_mask);
 
 void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack);
 

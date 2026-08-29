@@ -124,4 +124,75 @@ at::Tensor& set_source_Storage_storage_offset_(
   c10::IntArrayRef stride) {
   return at::cpu::set_(result, storage, storage_offset, size, stride); // TODO: this is a sus operation can cause segfaults on some weird cases, maybe just ignore it and do set_?
 }
+
+static std::vector<int64_t> conv_out_spatial(
+  c10::IntArrayRef in,
+  c10::IntArrayRef kernel,
+  c10::IntArrayRef stride,
+  c10::IntArrayRef padding,
+  c10::IntArrayRef dilation,
+  bool transposed,
+  c10::IntArrayRef output_padding) {
+  std::vector<int64_t> out(in.size());
+  for (size_t i = 0; i < in.size(); ++i) {
+    if (transposed) {
+      out[i] = (in[i] - 1) * stride[i] - 2 * padding[i] + dilation[i] * (kernel[i] - 1) + output_padding[i] + 1;
+    } else {
+      out[i] = (in[i] + 2 * padding[i] - dilation[i] * (kernel[i] - 1) - 1)/stride[i] + 1;
+    }
+  }
+  return out;
+}
+
+at::Tensor meta_convolution_overrideable(
+  const at::Tensor& input,
+  const at::Tensor& weight,
+  const std::optional<at::Tensor>& bias,
+  c10::SymIntArrayRef stride,
+  c10::SymIntArrayRef padding,
+  c10::SymIntArrayRef dilation,
+  bool transposed,
+  c10::SymIntArrayRef output_padding,
+  c10::SymInt groups) {
+  const int64_t group_size = groups.expect_int();
+  std::vector<int64_t> sizes(2 + input.dim() - 2);
+  sizes[0] = input.size(0);
+  sizes[1] = transposed ? weight.size(1) * group_size : weight.size(0);
+  std::vector<int64_t> stride_v, padding_v, dilation_v, output_padding_v;
+  for (const auto& s : stride) stride_v.push_back(s.expect_int());
+  for (const auto& p : padding) padding_v.push_back(p.expect_int());
+  for (const auto& d : dilation) dilation_v.push_back(d.expect_int());
+  for (const auto& p : output_padding) output_padding_v.push_back(p.expect_int());
+  auto spatial = conv_out_spatial(
+    input.sizes().slice(2), weight.sizes().slice(2), stride_v, padding_v,
+    dilation_v, transposed, output_padding_v);
+  for (size_t i = 0; i < spatial.size(); ++i) sizes[2 + i] = spatial[i];
+  return at::empty(sizes, input.options());
+}
+
+std::tuple<at::Tensor, at::Tensor, at::Tensor> meta_convolution_backward_overrideable(
+  const at::Tensor& grad_output,
+  const at::Tensor& input,
+  const at::Tensor& weight,
+  c10::SymIntArrayRef stride,
+  c10::SymIntArrayRef padding,
+  c10::SymIntArrayRef dilation,
+  bool transposed,
+  c10::SymIntArrayRef output_padding,
+  c10::SymInt groups,
+  ::std::array<bool, 3> output_mask) {
+  (void)grad_output;
+  (void)stride;
+  (void)padding;
+  (void)dilation;
+  (void)output_padding;
+  (void)output_mask;
+  const int64_t group_size = groups.expect_int();
+  int64_t cout = transposed ? weight.size(1) * group_size : weight.size(0);
+  at::Tensor grad_input = at::empty(input.sizes(), input.options());
+  at::Tensor grad_weight = at::empty(weight.sizes(), weight.options());
+  at::Tensor grad_bias = at::empty({cout}, weight.options());
+  return {grad_input, grad_weight, grad_bias};
+}
+
 } // namespace at::native::gpuclustersim

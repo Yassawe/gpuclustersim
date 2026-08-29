@@ -14,17 +14,15 @@ c10::Device infer_target_device(torch::jit::Stack& stack){
   // honestly i am not sure if this is even non redundant and if gcsCurrentDevice() would have worked fine. this is mostly
   // precaution, maybe wasteful. I don't know whether there is a guarantee that torch always uses guard to set_device() 
   // before any op can be dispatched.
-
-  int num_entries = stack.size();
-
-  for(int i=0; i<num_entries; i++){ 
+  
+  for(int i=0; i<stack.size(); i++){ 
     c10::IValue& iv = stack[i];
     if (iv.isDevice()){
       return iv.toDevice();
     }
   }
 
-  for(int i=0; i<num_entries; i++){
+  for(int i=0; i<stack.size(); i++){
     c10::IValue& iv = stack[i];
     if (iv.isTensor()) {
       at::Tensor& t = iv.toTensor();
@@ -48,11 +46,10 @@ c10::Device infer_target_device(torch::jit::Stack& stack){
 
 
 torch::jit::Stack cast_stack_to_device(torch::jit::Stack& stack, c10::Device device){
-  int num_entries = stack.size();
   torch::jit::Stack new_stack;
-  new_stack.reserve(num_entries);
+  new_stack.reserve(stack.size());
 
-  for (int i = 0; i<num_entries; i++){
+  for (int i = 0; i<stack.size(); i++){
     c10::IValue& iv = stack[i];
 
     if(iv.isTensor()) {
@@ -79,7 +76,29 @@ torch::jit::Stack cast_stack_to_device(torch::jit::Stack& stack, c10::Device dev
           new_list.push_back(t);
         }
       }
-      new_stack.push_back(std::move(new_list));
+      new_stack.push_back(new_list);
+    }
+
+    else if (iv.isTuple()){
+      const c10::ivalue::TupleElements& elems = iv.toTupleRef().elements();
+      std::vector<c10::IValue> new_elems;
+      new_elems.reserve(elems.size());
+      for (int j = 0; j < elems.size(); j++){
+        const c10::IValue& e = elems[j];
+        if (e.isTensor()){
+          const at::Tensor& t = e.toTensor();
+          if (t.defined()) {
+            new_elems.push_back(at::empty_strided(t.sizes(), t.strides(), t.options().device(device)));
+          }
+          else {
+            new_elems.push_back(t);
+          }
+        }
+        else {
+          new_elems.push_back(e);
+        }
+      }
+      new_stack.push_back(c10::ivalue::Tuple::create(new_elems));
     }
 
     else if (iv.isDevice()){
@@ -129,7 +148,7 @@ std::vector<gcs::sim::cost_models::ArgSpec> capture_args(torch::jit::Stack& stac
 
   result.reserve(arg_names.size());
 
-  for (int i=0; i<arg_names.size(); i++){
+  for (int i = 0; i < stack.size(); i++){
     gcs::sim::cost_models::ArgSpec arg;
     arg.name = arg_names[i].name();
 
@@ -137,14 +156,13 @@ std::vector<gcs::sim::cost_models::ArgSpec> capture_args(torch::jit::Stack& stac
 
     if (iv.isTensor()){
       arg.type = gcs::sim::cost_models::ArgSpec::Type::Tensor;
-      at::Tensor& t = iv.toTensor();
       gcs::sim::cost_models::TensorSpec t_spec;
-      t_spec.defined = t.defined();
-      if(t.defined()){
-        t_spec.dims = t.sizes().vec();
-        t_spec.dtype = map_dtype(t.scalar_type());
-        t_spec.dtype_size = static_cast<int>(t.element_size());
-        t_spec.numel = t.numel();
+      t_spec.defined = iv.toTensor().defined();
+      if(t_spec.defined){
+        t_spec.dims = iv.toTensor().sizes().vec();
+        t_spec.dtype = map_dtype(iv.toTensor().scalar_type());
+        t_spec.dtype_size = static_cast<int>(iv.toTensor().element_size());
+        t_spec.numel = iv.toTensor().numel();
       }
       arg.tensor = t_spec;
     }
@@ -170,6 +188,27 @@ std::vector<gcs::sim::cost_models::ArgSpec> capture_args(torch::jit::Stack& stac
 
       arg.tensor_list = t_spec_list;
     }
+
+    else if (iv.isTuple()){ //unroll tuples
+      const c10::ivalue::TupleElements& elems = iv.toTupleRef().elements();
+      for (int j = 0; j < elems.size(); j++){
+        gcs::sim::cost_models::ArgSpec elem_arg;
+        elem_arg.type = gcs::sim::cost_models::ArgSpec::Type::Tensor;
+        elem_arg.name = arg.name;
+        const at::Tensor& t = elems[j].toTensor();
+        gcs::sim::cost_models::TensorSpec t_spec;
+        t_spec.defined = t.defined();
+        if (t.defined()){
+          t_spec.dims = t.sizes().vec();
+          t_spec.dtype = map_dtype(t.scalar_type());
+          t_spec.dtype_size = static_cast<int>(t.element_size());
+          t_spec.numel = t.numel();
+        }
+        elem_arg.tensor = t_spec;
+        result.push_back(elem_arg);
+      }
+    }
+
     else if (iv.isInt() || iv.isDouble() || iv.isBool()) {
 
       arg.type = gcs::sim::cost_models::ArgSpec::Type::Scalar;
@@ -228,12 +267,15 @@ void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
 
 
   std::cout<<"Op Name: " << op.schema().name() << std::endl;
+  std::cout<<"Op Overload Name: " << op.schema().overload_name() << std::endl;
+
 
 
   c10::Device device = infer_target_device(*stack);
   c10::DeviceIndex device_id = device.index();
   c10::StreamId stream_id = c10::gpuclustersim::gcsGetStream(device_id);
 
+  std::cout<<"Op Inputs: "<<op.schema().arguments() << std::endl;
   std::vector<gcs::sim::cost_models::ArgSpec> inputs = capture_args(*stack, op.schema().arguments());
 
   // functional correctness part, cast to meta, redispatch to get output shapes, cast back for coninuity
@@ -250,6 +292,7 @@ void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   }  
 
   // after dispatch the stack contains outputs
+  std::cout<<"Op Outputs: "<<op.schema().returns() << std::endl;
   std::vector<gcs::sim::cost_models::ArgSpec> outputs = capture_args(*stack, op.schema().returns());
   
   gcs::sim::cost_models::OpSpec op_spec = {op.schema().name(), inputs, outputs};
