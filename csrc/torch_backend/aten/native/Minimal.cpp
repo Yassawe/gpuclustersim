@@ -107,6 +107,10 @@ at::Scalar _local_scalar_dense(const at::Tensor& self) {
   return at::Scalar(0.0);
 }
 
+bool _has_compatible_shallow_copy_type(const at::Tensor& self, const at::Tensor& from) {
+  return true;
+}
+
 
 at::Tensor& set_source_Tensor_(at::Tensor& self, const at::Tensor& source) {
   return at::native::set_tensor_(self, source);

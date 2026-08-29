@@ -54,6 +54,8 @@ at::Tensor _copy_from_and_resize(const at::Tensor& self, const at::Tensor& dst);
 
 at::Scalar _local_scalar_dense(const at::Tensor& self);
 
+bool _has_compatible_shallow_copy_type(const at::Tensor& self, const at::Tensor& from);
+
 at::Tensor& set_source_Tensor_(at::Tensor& self, const at::Tensor& source);
 
 at::Tensor& set_source_Storage_(at::Tensor& self, at::Storage source);

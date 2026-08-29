@@ -142,7 +142,7 @@ gcs::sim::cost_models::DataType map_dtype(at::ScalarType st){
 }
 
 
-std::vector<gcs::sim::cost_models::ArgSpec> capture_args(torch::jit::Stack& stack, const auto& arg_names){
+std::vector<gcs::sim::cost_models::ArgSpec> capture_args(torch::jit::Stack& stack, const auto& arg_names, std::string type="input"){
 
   std::vector<gcs::sim::cost_models::ArgSpec> result;
 
@@ -156,13 +156,18 @@ std::vector<gcs::sim::cost_models::ArgSpec> capture_args(torch::jit::Stack& stac
 
     if (iv.isTensor()){
       arg.type = gcs::sim::cost_models::ArgSpec::Type::Tensor;
+      const at::Tensor& t = iv.toTensor();
       gcs::sim::cost_models::TensorSpec t_spec;
-      t_spec.defined = iv.toTensor().defined();
-      if(t_spec.defined){
-        t_spec.dims = iv.toTensor().sizes().vec();
-        t_spec.dtype = map_dtype(iv.toTensor().scalar_type());
-        t_spec.dtype_size = static_cast<int>(iv.toTensor().element_size());
-        t_spec.numel = iv.toTensor().numel();
+      t_spec.defined = t.defined();
+      if(t.defined()){
+        t_spec.dims = t.sizes().vec();
+        t_spec.dtype = map_dtype(t.scalar_type());
+        t_spec.dtype_size = static_cast<int>(t.element_size());
+        t_spec.numel = t.numel();
+      }
+      if (type=="input" && arg_names[i].alias_info() != nullptr && arg_names[i].alias_info()->isWrite()){
+        // questionable, todo: investigate
+        t_spec.is_input_write_buffer = true;
       }
       arg.tensor = t_spec;
     }
@@ -185,11 +190,10 @@ std::vector<gcs::sim::cost_models::ArgSpec> capture_args(torch::jit::Stack& stac
         }
         t_spec_list.push_back(t_spec);
       }
-
       arg.tensor_list = t_spec_list;
     }
 
-    else if (iv.isTuple()){ //unroll tuples
+    else if (iv.isTuple()){ //unroll tuples, op_spec will match schema, easier for mental model imo
       const c10::ivalue::TupleElements& elems = iv.toTupleRef().elements();
       for (int j = 0; j < elems.size(); j++){
         gcs::sim::cost_models::ArgSpec elem_arg;
@@ -276,7 +280,7 @@ void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
   c10::StreamId stream_id = c10::gpuclustersim::gcsGetStream(device_id);
 
   std::cout<<"Op Inputs: "<<op.schema().arguments() << std::endl;
-  std::vector<gcs::sim::cost_models::ArgSpec> inputs = capture_args(*stack, op.schema().arguments());
+  std::vector<gcs::sim::cost_models::ArgSpec> inputs = capture_args(*stack, op.schema().arguments(), "input");
 
   // functional correctness part, cast to meta, redispatch to get output shapes, cast back for coninuity
   // if meta implementation is lacking for that op, fallback to cpu 
@@ -293,7 +297,7 @@ void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
 
   // after dispatch the stack contains outputs
   std::cout<<"Op Outputs: "<<op.schema().returns() << std::endl;
-  std::vector<gcs::sim::cost_models::ArgSpec> outputs = capture_args(*stack, op.schema().returns());
+  std::vector<gcs::sim::cost_models::ArgSpec> outputs = capture_args(*stack, op.schema().returns(), "output");
   
   gcs::sim::cost_models::OpSpec op_spec = {op.schema().name(), inputs, outputs};
 

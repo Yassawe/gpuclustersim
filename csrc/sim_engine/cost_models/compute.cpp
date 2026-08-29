@@ -11,14 +11,28 @@ namespace gcs::sim::cost_models {
 
 // helpers
 
-int64_t tensor_bytes(ArgSpec& arg){
-  if (arg.type == ArgSpec::Type::Tensor && arg.tensor.defined){
-    return arg.tensor.numel*arg.tensor.dtype_size;
+int64_t tensor_numel(ArgSpec& arg){
+  if (arg.type == ArgSpec::Type::Tensor){
+    if(arg.tensor.defined) return arg.tensor.numel;
   }
   if (arg.type == ArgSpec::Type::TensorList){
     int64_t total = 0;
     for (TensorSpec t : arg.tensor_list){
-      if (t.defined) total+=t.numel*t.dtype_size;
+      if (t.defined) total+=t.numel;
+    }
+    return total;
+  }
+  return 0;
+}
+
+int64_t tensor_bytes(ArgSpec& arg){
+  if (arg.type == ArgSpec::Type::Tensor){
+    if (arg.tensor.defined && !arg.tensor.is_input_write_buffer) return arg.tensor.numel*arg.tensor.dtype_size;
+  }
+  if (arg.type == ArgSpec::Type::TensorList){
+    int64_t total = 0;
+    for (TensorSpec t : arg.tensor_list){
+      if (t.defined && !t.is_input_write_buffer) total+=t.numel*t.dtype_size;
     }
     return total;
   }
@@ -31,20 +45,6 @@ int64_t total_tensor_bytes(std::vector<ArgSpec>& args){
     total+=tensor_bytes(arg);
   }
   return total;
-}
-
-int64_t tensor_numel(ArgSpec& arg){
-  if (arg.type == ArgSpec::Type::Tensor && arg.tensor.defined){
-    return arg.tensor.numel;
-  }
-  if (arg.type == ArgSpec::Type::TensorList){
-    int64_t total = 0;
-    for (TensorSpec t : arg.tensor_list){
-      if (t.defined) total+=t.numel;
-    }
-    return total;
-  }
-  return 0;
 }
 
 DataType get_dominant_dtype(std::vector<ArgSpec>& args){
@@ -266,15 +266,6 @@ OpCost attention_backward_cost(OpSpec& op_spec){
   return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
 }
 
-// NORM
-OpCost norm_cost(OpSpec& op_spec){
-
-}
-
-OpCost pool_cost(OpSpec& op_spec){
-
-}
-
 
 // MISC
 
@@ -284,28 +275,32 @@ OpCost elementwise_cost(OpSpec& op_spec){
   ArgSpec self = op_spec.inputs[0];
   ArgSpec out = op_spec.outputs[0];
   
-  int64_t passes = 1; // single fused pass over the output for a pure elementwise op
-  int64_t flops = passes*out.tensor.numel;
-  int64_t bytes = tensor_bytes(self) + tensor_bytes(out);
+  int64_t flops = out.tensor.numel; //todo: revise, 1 pass is not the case for a lot of ops
+  int64_t bytes = total_tensor_bytes(op_spec.inputs) + total_tensor_bytes(op_spec.outputs);
 
   return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
 }
 
 
 OpCost reduction_cost(OpSpec& op_spec){
-  // (Tensor self, ...) -> Tensor, like elementwise except the input<->output can be different shapes, i.e. transformed
+  // (Tensor self, ...) -> Tensor, like elementwise except the input<->output can be different shapes
 
   ArgSpec self = op_spec.inputs[0];
   ArgSpec out = op_spec.outputs[0];
 
   int64_t flops = std::max(self.tensor.numel, out.tensor.numel);
-  int64_t bytes = tensor_bytes(self) + tensor_bytes(out);
+  int64_t bytes = total_tensor_bytes(op_spec.inputs) + total_tensor_bytes(op_spec.outputs);
 
   return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
 }
 
+OpCost norm_cost(OpSpec& op_spec){
 
+}
 
+OpCost pool_cost(OpSpec& op_spec){
+
+}
 
 
 OpCost embedding_cost(OpSpec& op_spec){
