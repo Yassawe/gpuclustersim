@@ -11,20 +11,6 @@ namespace gcs::sim::cost_models {
 
 // helpers
 
-int64_t tensor_numel(ArgSpec& arg){
-  if (arg.type == ArgSpec::Type::Tensor){
-    if(arg.tensor.defined) return arg.tensor.numel;
-  }
-  if (arg.type == ArgSpec::Type::TensorList){
-    int64_t total = 0;
-    for (TensorSpec t : arg.tensor_list){
-      if (t.defined) total+=t.numel;
-    }
-    return total;
-  }
-  return 0;
-}
-
 int64_t tensor_bytes(ArgSpec& arg){
   if (arg.type == ArgSpec::Type::Tensor){
     if (arg.tensor.defined && !arg.tensor.is_input_write_buffer) return arg.tensor.numel*arg.tensor.dtype_size;
@@ -267,7 +253,7 @@ OpCost attention_backward_cost(OpSpec& op_spec){
 }
 
 
-// MISC
+// memory bound ops
 
 OpCost elementwise_cost(OpSpec& op_spec){
   // (Tensor self) -> Tensor
@@ -294,25 +280,11 @@ OpCost reduction_cost(OpSpec& op_spec){
   return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
 }
 
-OpCost norm_cost(OpSpec& op_spec){
+OpCost sort_cost(OpSpec& op_spec){
+  int64_t n = op_spec.outputs[0].tensor.numel;
+  int64_t flops = n * static_cast<int64_t>(std::log2(static_cast<double>(n)));
+  int64_t bytes = total_tensor_bytes(op_spec.inputs) + total_tensor_bytes(op_spec.outputs);
 
-}
-
-OpCost pool_cost(OpSpec& op_spec){
-
-}
-
-
-OpCost embedding_cost(OpSpec& op_spec){
-  int64_t flops=0;
-  int64_t bytes=0;
-  return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
-}
-
-
-OpCost loss_cost(OpSpec& op_spec){
-  int64_t flops=0;
-  int64_t bytes=0;
   return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
 }
 
@@ -410,35 +382,35 @@ OpCost cost_router(OpSpec& op_spec){
     {"aten::std", reduction_cost},
     {"aten::var", reduction_cost},
     {"aten::var_mean", reduction_cost},
-    {"aten::sort", reduction_cost},
-    {"aten::topk", reduction_cost},
+    {"aten::sort", sort_cost},
+    {"aten::topk", sort_cost},
 
 
     //norm
-    {"aten::native_batch_norm", norm_cost},
-    {"aten::native_batch_norm_backward", norm_cost},
-    {"aten::native_layer_norm", norm_cost},
-    {"aten::native_layer_norm_backward", norm_cost},
-    {"aten::native_group_norm", norm_cost}, 
-    {"aten::native_group_norm_backward", norm_cost},
+    {"aten::native_batch_norm", reduction_cost},
+    {"aten::native_batch_norm_backward", reduction_cost},
+    {"aten::native_layer_norm", reduction_cost},
+    {"aten::native_layer_norm_backward", reduction_cost},
+    {"aten::native_group_norm", reduction_cost}, 
+    {"aten::native_group_norm_backward", reduction_cost},
 
     //pooling
-    {"aten::max_pool2d_with_indices", pool_cost},
-    {"aten::max_pool2d_with_indices_backward", pool_cost}, 
-    {"aten::avg_pool2d", pool_cost},
-    {"aten::_adaptive_avg_pool2d", pool_cost}, 
-    {"aten::avg_pool2d_backward", pool_cost}, 
-    {"aten::_adaptive_avg_pool2d_backward", pool_cost}, 
+    {"aten::max_pool2d_with_indices", elementwise_cost},
+    {"aten::max_pool2d_with_indices_backward", elementwise_cost}, 
+    {"aten::avg_pool2d", elementwise_cost},
+    {"aten::_adaptive_avg_pool2d", elementwise_cost}, 
+    {"aten::avg_pool2d_backward", elementwise_cost}, 
+    {"aten::_adaptive_avg_pool2d_backward", elementwise_cost}, 
 
     // misc
-    {"aten::embedding", embedding_cost},
-    {"aten::embedding_dense_backward", embedding_cost}, 
-    {"aten::nll_loss_forward", loss_cost},
-    {"aten::nll_loss_backward", loss_cost}, 
-    {"aten::mse_loss", loss_cost},
-    {"aten::mse_loss_backward", loss_cost}, 
-    {"aten::smooth_l1_loss", loss_cost},
-    {"aten::smooth_l1_loss_backward", loss_cost}, 
+    {"aten::embedding", elementwise_cost},
+    {"aten::embedding_dense_backward", elementwise_cost}, 
+    {"aten::nll_loss_forward", elementwise_cost},
+    {"aten::nll_loss_backward", elementwise_cost}, 
+    {"aten::mse_loss", elementwise_cost},
+    {"aten::mse_loss_backward", elementwise_cost}, 
+    {"aten::smooth_l1_loss", elementwise_cost},
+    {"aten::smooth_l1_loss_backward", elementwise_cost}, 
   };
   
 
@@ -455,7 +427,21 @@ OpCost cost_router(OpSpec& op_spec){
 }
 
 double duration_fn(OpCost& op_cost, DeviceSpec& device_spec){
-  return 0;
+  
+  double target_tflops;
+
+  if(op_cost.dominant_dtype==DataType::FP64) target_tflops=device_spec.fp64_tflops;
+  else if(op_cost.dominant_dtype==DataType::FP32) target_tflops=device_spec.fp32_tflops;
+  else if(op_cost.dominant_dtype==DataType::FP16) target_tflops=device_spec.fp16_tflops;
+  else if(op_cost.dominant_dtype==DataType::FP8) target_tflops=device_spec.fp8_tflops;
+  else target_tflops=device_spec.fp32_tflops;
+
+  if(target_tflops==0) target_tflops=device_spec.fp32_tflops;
+
+  double t_comp = 1e6*static_cast<double>(op_cost.flops)/(target_tflops*1e12); // flops/(flops/s)*10^6 -> 10^6*s -> us
+  double t_mem = 1e6*static_cast<double>(op_cost.bytes)/(device_spec.mem_bandwidth*1e9);
+
+  return std::max(t_comp, t_mem); 
 }
 
 
