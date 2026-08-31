@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <utils/Macros.h>
 
 namespace gcs::sim{
 
@@ -20,5 +21,6 @@ void advance_current_stream_time(int device, int stream, double time);
 void schedule_op_on_timeline(int device, int stream, std::string name, double duration); 
 
 ENABLE_EXPORT std::vector<std::vector<StreamTimeline>> get_timeline();
+ENABLE_EXPORT void reset_timeline();
 
 }

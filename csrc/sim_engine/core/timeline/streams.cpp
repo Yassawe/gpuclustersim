@@ -20,7 +20,7 @@ static void ensure_size(int device) {
   }
 }
 
-ENABLE_EXPORT int create_stream(int device) {
+int create_stream(int device) {
   ensure_size(device);
 
   std::lock_guard<std::mutex> lock(mutex_);
@@ -30,16 +30,16 @@ ENABLE_EXPORT int create_stream(int device) {
   return stream_id;
 }
 
-ENABLE_EXPORT int default_stream(int device) {
+int default_stream(int device) {
   return 0;
 }
 
-ENABLE_EXPORT int current_stream(int device) {
+int current_stream(int device) {
   ensure_size(device);
   return device_current_stream[device];
 }
 
-ENABLE_EXPORT int exchange_stream(int device, int stream_id) {
+int exchange_stream(int device, int stream_id) {
   ensure_size(device);
   int old_stream_id = device_current_stream[device];
   device_current_stream[device] = stream_id;

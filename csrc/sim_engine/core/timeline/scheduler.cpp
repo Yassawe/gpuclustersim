@@ -52,4 +52,9 @@ std::vector<std::vector<StreamTimeline>> get_timeline() {
   return timeline;
 }
 
+void reset_timeline(){
+  timeline.clear();
+}
+
+
 } 
