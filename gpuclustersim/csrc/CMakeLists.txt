@@ -10,7 +10,10 @@ target_link_libraries(${LIBRARY_NAME} PRIVATE torch_python_library gcs_sim_engin
 
 target_include_directories(${LIBRARY_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-set_target_properties(${LIBRARY_NAME} PROPERTIES OUTPUT_NAME "_C")
+set_target_properties(${LIBRARY_NAME} PROPERTIES
+    OUTPUT_NAME "_C"
+    PREFIX ""
+)
 
 if(WIN32)
     find_package(Python3 COMPONENTS Interpreter Development REQUIRED)

@@ -7,8 +7,8 @@ namespace gcs::sim{
 
 struct ENABLE_EXPORT ScheduledOp{
   std::string name;
-  double start_time; //us
-  double end_time; //us
+  double start_time; //ns
+  double end_time; //ns
 };
 
 struct ENABLE_EXPORT StreamTimeline{

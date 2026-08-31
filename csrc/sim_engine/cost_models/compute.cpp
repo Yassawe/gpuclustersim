@@ -438,8 +438,8 @@ double duration_fn(OpCost& op_cost, DeviceSpec& device_spec){
 
   if(target_tflops==0) target_tflops=device_spec.fp32_tflops;
 
-  double t_comp = 1e6*static_cast<double>(op_cost.flops)/(target_tflops*1e12); // flops/(flops/s)*10^6 -> 10^6*s -> us
-  double t_mem = 1e6*static_cast<double>(op_cost.bytes)/(device_spec.mem_bandwidth*1e9);
+  double t_comp = 1e9*static_cast<double>(op_cost.flops)/(target_tflops*1e12); // flops/(flops/s)*10^9 -> 10^9*s -> ns
+  double t_mem = 1e9*static_cast<double>(op_cost.bytes)/(device_spec.mem_bandwidth*1e9);
 
   return std::max(t_comp, t_mem); 
 }

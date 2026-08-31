@@ -28,6 +28,30 @@ def set_device(device):
   if device >= 0:
     gpuclustersim._C._set_device(device)
 
+def current_stream():
+  return gpuclustersim._C._get_current_stream()
+
+def default_stream():
+  return gpuclustersim._C._get_default_stream()
+
+def new_stream():
+  return gpuclustersim._C._new_stream()
+
+def set_stream(stream):
+  return gpuclustersim._C._exchange_stream(stream)
+
+class stream:
+  def __init__(self, stream_id):
+    self.stream_id = stream_id
+    self.prev = None
+
+  def __enter__(self):
+    self.prev = gpuclustersim._C._exchange_stream(self.stream_id)
+
+  def __exit__(self, type, value, traceback):
+    gpuclustersim._C._exchange_stream(self.prev)
+    return False
+
 def is_initialized():
   return _initialized
 
@@ -49,5 +73,10 @@ __all__ = [
   "set_device",
   "is_available",
   "init",
-  "is_initialized"
+  "is_initialized",
+  "current_stream",
+  "default_stream",
+  "new_stream",
+  "set_stream",
+  "stream"
 ]

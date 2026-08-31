@@ -31,14 +31,17 @@ def dump_timeline(path):
           {
             "name": op["name"],
             "ph": "X",
-            "ts": int(op["start_time"]),
-            "dur": int(op["end_time"] - op["start_time"]),
+            "ts": op["start_time"],
+            "dur": op["end_time"] - op["start_time"],
             "pid": device_id,
             "tid": stream_id,
           }
         )
 
-  output = {"traceEvents": trace_events}
+  output = {
+    "displayTimeUnit": "ns",
+    "traceEvents": trace_events
+  }
 
   with open(path, "w") as f:
     json.dump(output, f, indent=2)
