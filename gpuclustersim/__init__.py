@@ -15,6 +15,8 @@ torch.utils.rename_privateuse1_backend("gpuclustersim")
 torch._register_device_module("gpuclustersim", gpuclustersim.module)
 torch.utils.generate_methods_for_privateuse1_backend(for_storage=True)
 
+_C._init()
+
 def init_devices(path, n):
   with open(path, "r") as f:
     spec = json.load(f)

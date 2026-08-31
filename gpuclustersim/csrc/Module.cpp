@@ -3,7 +3,6 @@
 #include <ATen/Context.h>
 #include <torch/csrc/utils/device_lazy_init.h>
 #include <runtime/DeviceFunctions.h>
-#include <runtime/Streams.h>
 #include <sim_engine.h>
 
 namespace py = pybind11;
@@ -34,26 +33,6 @@ PYBIND11_MODULE(_C, m) {
     if (device_index < 0) return -1;
     torch::utils::device_lazy_init(at::kPrivateUse1);
     return static_cast<int32_t>(c10::gpuclustersim::gcsExchangeDevice(device_index));
-  });
-
-  m.def("_get_default_stream", []() -> int {
-    torch::utils::device_lazy_init(at::kPrivateUse1);
-    return static_cast<int>(c10::gpuclustersim::gcsGetDefaultStream(0));
-  });
-
-  m.def("_get_current_stream", []() -> int {
-    torch::utils::device_lazy_init(at::kPrivateUse1);
-    return static_cast<int>(c10::gpuclustersim::gcsGetStream(0));
-  });
-
-  m.def("_new_stream", []() -> int {
-    torch::utils::device_lazy_init(at::kPrivateUse1);
-    return static_cast<int>(c10::gpuclustersim::gcsGetNewStream(0));
-  });
-
-  m.def("_exchange_stream", [](int stream_id) -> int32_t {
-    torch::utils::device_lazy_init(at::kPrivateUse1);
-    return static_cast<int32_t>(c10::gpuclustersim::gcsExchangeStream(0, stream_id));
   });
 
   m.def("_init_devices", [](py::dict spec, int n) {
