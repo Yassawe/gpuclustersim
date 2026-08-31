@@ -1,22 +1,54 @@
-# Dummy utilities for torch.gpuclustersim.*
-# These are required for torch._register_device_module to work.
+import torch
+import gpuclustersim._C
 
-def device_count():
-    """Return the number of available simulated devices."""
-    return 1 
+_initialized = False
+
+class device:
+    def __init__(self, device):
+        self.idx = torch.accelerator._get_device_index(device, optional=True)
+        self.prev_idx = -1
+
+    def __enter__(self):
+        self.prev_idx = gpuclustersim._C._exchangeDevice(self.idx)
+
+    def __exit__(self, type, value, traceback):
+        self.idx = gpuclustersim._C._set_device(self.prev_idx)
+        return False
+
+def is_available():
+    return True
+
+def device_count() -> int:
+    return gpuclustersim._C._get_device_count()
+
 
 def current_device():
-    """Return the index of the currently selected device."""
-    return 0
+    return gpuclustersim._C._get_device()
 
-def set_device(index):
-    """Set the current device index (MVP: no-op)."""
-    pass
+def set_device(device) -> None:
+    if device >= 0:
+        gpuclustersim._C._set_device(device)
 
-def get_device_properties(device):
-    """Return dummy device properties (optional but safe)."""
-    return None
+def is_initialized():
+    return _initialized
 
-def synchronize(device=None):
-    """Synchronize the device (MVP: no-op)."""
-    pass
+
+def _lazy_init():
+    global _initialized
+    if is_initialized():
+        return
+    gpuclustersim._C._init()
+    _initialized = True
+
+def init():
+    _lazy_init()
+
+__all__ = [
+    "device",
+    "device_count",
+    "current_device",
+    "set_device",
+    "is_available",
+    "init",
+    "is_initialized"
+]

@@ -3,7 +3,7 @@
 
 namespace gcs::sim{
 
-struct DeviceSpec {
+struct ENABLE_EXPORT DeviceSpec {
   double fp64_tflops;
   double fp32_tflops;
   double fp16_tflops;
@@ -14,8 +14,8 @@ struct DeviceSpec {
 };
 
 
-void init_devices(DeviceSpec device_spec, int n);
-DeviceSpec get_device_spec(); 
+ENABLE_EXPORT void init_devices(DeviceSpec device_spec, int n);
+ENABLE_EXPORT DeviceSpec get_device_spec(); 
 
 ENABLE_EXPORT int device_count();
 ENABLE_EXPORT int current_device();

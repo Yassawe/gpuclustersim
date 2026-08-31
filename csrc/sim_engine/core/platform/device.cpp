@@ -7,12 +7,12 @@ static DeviceSpec g_device_spec;
 static thread_local int g_current_device = 0;
 
 
-void init_devices(DeviceSpec device_spec, int n){
+ENABLE_EXPORT void init_devices(DeviceSpec device_spec, int n){
   g_device_spec = device_spec;
   g_num_devices = n;
 }
 
-DeviceSpec get_device_spec(){
+ENABLE_EXPORT DeviceSpec get_device_spec(){
   return g_device_spec;
 }
 

@@ -7,3 +7,4 @@ build/
 gpuclustersim/lib/
 __pycache__
 
+tests/

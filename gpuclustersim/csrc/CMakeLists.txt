@@ -1,7 +1,7 @@
 set(LIBRARY_NAME gcs_bindings)
 
-set(SOURCE_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/Module.cpp
+file(GLOB_RECURSE SOURCE_FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
 )
 
 add_library(${LIBRARY_NAME} SHARED ${SOURCE_FILES})

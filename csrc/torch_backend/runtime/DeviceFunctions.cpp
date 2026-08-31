@@ -3,23 +3,23 @@
 
 namespace c10::gpuclustersim {
 
-DeviceIndex gcsDeviceCount(){
+ENABLE_EXPORT DeviceIndex gcsDeviceCount(){
   return static_cast<DeviceIndex>(gcs::sim::device_count());
 }
 
-DeviceIndex gcsCurrentDevice(){
+ENABLE_EXPORT DeviceIndex gcsCurrentDevice(){
   return static_cast<DeviceIndex>(gcs::sim::current_device());
 }
 
-void gcsSetDevice(DeviceIndex device_id){
+ENABLE_EXPORT void gcsSetDevice(DeviceIndex device_id){
   gcs::sim::set_device(static_cast<int>(device_id));
 }
 
-DeviceIndex gcsExchangeDevice(DeviceIndex device_id){
+ENABLE_EXPORT DeviceIndex gcsExchangeDevice(DeviceIndex device_id){
   return static_cast<DeviceIndex>(gcs::sim::exchange_device(static_cast<int>(device_id)));
 }
 
-DeviceIndex gcsMaybeExchangeDevice(DeviceIndex device_id){
+ENABLE_EXPORT DeviceIndex gcsMaybeExchangeDevice(DeviceIndex device_id){
   return static_cast<DeviceIndex>(gcs::sim::exchange_device(static_cast<int>(device_id))); // no cost to changing so doesn't matter, cold path anyways.
 }
 

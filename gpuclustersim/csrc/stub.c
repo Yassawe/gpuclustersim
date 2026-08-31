@@ -6,7 +6,7 @@
 #define ENABLE_EXPORT __attribute__((visibility("default")))
 #endif
 
-extern ENABLE_EXPORT PyObject* initGPUClusterSimModule(void);
+extern ENABLE_EXPORT PyObject* initGCSModule(void);
 
 #ifdef __cplusplus
 extern "C"
@@ -15,5 +15,5 @@ extern "C"
 ENABLE_EXPORT PyObject* PyInit__C(void);
 
 PyMODINIT_FUNC PyInit__C(void) {
-  return initGPUClusterSimModule();
+  return initGCSModule();
 }
