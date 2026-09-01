@@ -271,8 +271,6 @@ void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
 
 
   // std::cout<<"Op Name: " << op.schema().name() << std::endl;
-  // std::cout<<"Op Overload Name: " << op.schema().overload_name() << std::endl;
-
 
 
   c10::Device device = infer_target_device(*stack);

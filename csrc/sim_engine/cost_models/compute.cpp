@@ -369,6 +369,7 @@ OpCost cost_router(OpSpec& op_spec){
     {"aten::gather", elementwise_cost},           
     {"aten::index_select", elementwise_cost},
     {"aten::_thnn_fused_lstm_cell", elementwise_cost},  
+    {"aten::normal_", elementwise_cost},
 
     //reduction
     {"aten::sum", reduction_cost},

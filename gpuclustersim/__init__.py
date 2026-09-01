@@ -48,3 +48,5 @@ def dump_timeline(path):
   with open(path, "w") as f:
     json.dump(output, f, indent=2)
 
+def reset_timeline():
+  _C._reset_timeline()

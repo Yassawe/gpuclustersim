@@ -70,4 +70,8 @@ PYBIND11_MODULE(_C, m) {
     return py_timeline;
   });
 
+  m.def("_reset_timeline", []() {
+  gcs::sim::reset_timeline();
+  });
+
 }
