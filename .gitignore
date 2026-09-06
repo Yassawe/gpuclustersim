@@ -6,5 +6,3 @@ build/
 *.so
 gpuclustersim/lib/
 __pycache__
-
-tests/

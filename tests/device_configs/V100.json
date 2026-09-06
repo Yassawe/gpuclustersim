@@ -1,0 +1,8 @@
+{
+  "fp64_tflops": 7.0,
+  "fp32_tflops": 14.0,
+  "fp16_tflops": 112.0,
+  "fp8_tflops": 0.0,
+  "mem_size": 32.0,
+  "mem_bandwidth": 900.0
+}
