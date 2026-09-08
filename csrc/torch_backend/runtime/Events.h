@@ -10,4 +10,4 @@ bool gcsQueryEvent(void* event);
 double gcsEventElapsedTime(void* event1, void* event2);
 void gcsDestroyEvent(void* event);
 
-} 
+}

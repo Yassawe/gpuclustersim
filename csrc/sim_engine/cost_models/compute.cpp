@@ -261,7 +261,7 @@ OpCost elementwise_cost(OpSpec& op_spec){
   ArgSpec self = op_spec.inputs[0];
   ArgSpec out = op_spec.outputs[0];
   
-  int64_t flops = out.tensor.numel; //todo: revise, 1 pass is not the case for a lot of ops
+  int64_t flops = out.tensor.numel; //todo: revise, 1 pass is not the case for a lot of ops, also can read multiple times
   int64_t bytes = total_tensor_bytes(op_spec.inputs) + total_tensor_bytes(op_spec.outputs);
 
   return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
@@ -282,7 +282,7 @@ OpCost reduction_cost(OpSpec& op_spec){
 
 OpCost sort_cost(OpSpec& op_spec){
   int64_t n = op_spec.outputs[0].tensor.numel;
-  int64_t flops = n * static_cast<int64_t>(std::log2(static_cast<double>(n)));
+  int64_t flops = n * static_cast<int64_t>(std::log2(static_cast<double>(n))); // should be nlogn in general
   int64_t bytes = total_tensor_bytes(op_spec.inputs) + total_tensor_bytes(op_spec.outputs);
 
   return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
@@ -453,7 +453,7 @@ double estimate_compute_duration(OpSpec& op_spec, DeviceSpec& device_spec){
     return duration;
   }
   catch(...){
-    std::cout<<"compute cost function error on op: "<<op_spec.name<<std::endl;
+    std::cout<<"compute cost function error on op: "<<op_spec.name<<std::endl; // TODO: oob is not caught, use at()
     return 0;
   }
 }
