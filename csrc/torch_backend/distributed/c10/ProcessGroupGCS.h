@@ -70,11 +70,6 @@ class ProcessGroupGCS : public Backend{
       std::vector<at::Tensor>& tensors,
       const ReduceOptions& opts = ReduceOptions()) override;
 
-    c10::intrusive_ptr<Work> _reduce_scatter_base(
-      at::Tensor& outputTensor,
-      at::Tensor& inputTensor,
-      const ReduceScatterOptions& opts = ReduceScatterOptions()) override;
-
     c10::intrusive_ptr<Work> _allgather_base(
       at::Tensor& output_tensor,
       at::Tensor& input_tensor,
@@ -104,6 +99,11 @@ class ProcessGroupGCS : public Backend{
       std::vector<at::Tensor>& outputs,
       std::vector<std::vector<at::Tensor>>& inputs,
       const ScatterOptions& opts = ScatterOptions()) override;
+    
+    c10::intrusive_ptr<Work> _reduce_scatter_base(
+      at::Tensor& outputTensor,
+      at::Tensor& inputTensor,
+      const ReduceScatterOptions& opts = ReduceScatterOptions()) override;
 
     c10::intrusive_ptr<Work> reduce_scatter(
       std::vector<at::Tensor>& outputs,

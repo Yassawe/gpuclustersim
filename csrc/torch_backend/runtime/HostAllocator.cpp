@@ -12,7 +12,8 @@ REGISTER_HOST_ALLOCATOR(at::kPrivateUse1, &g_host_allocator);
 namespace c10::gpuclustersim {
 
 at::DataPtr GCSHostAllocator::allocate(size_t nbytes) {
-  void* ptr = malloc(nbytes); 
+  (void) nbytes;
+  void* ptr = malloc(1); 
   return at::DataPtr(ptr, ptr, &GCSHostAllocator::deallocate, at::Device(at::kCPU));
 }
 
@@ -21,7 +22,8 @@ void GCSHostAllocator::deallocate(void* ptr){
 };
 
 void GCSHostAllocator::copy_data(void* dest, const void* src, std::size_t count) const {
-  memcpy(dest, src, count);
+  (void) count;
+  memcpy(dest, src, 1);
 }
 
 } //namespace c10::gpuclustersim
