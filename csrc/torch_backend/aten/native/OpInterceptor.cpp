@@ -269,15 +269,11 @@ std::vector<gcs::sim::cost_models::ArgSpec> capture_args(torch::jit::Stack& stac
 
 void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
 
-
-  // std::cout<<"Op Name: " << op.schema().name() << std::endl;
-
-
   c10::Device device = infer_target_device(*stack);
   c10::DeviceIndex device_id = device.index();
   c10::StreamId stream_id = c10::gpuclustersim::gcsGetStream(device_id);
 
-  //std::cout<<"Op Inputs: "<<op.schema().arguments() << std::endl;
+
   std::vector<gcs::sim::cost_models::ArgSpec> inputs = capture_args(*stack, op.schema().arguments(), "input");
 
   // functional correctness part, cast to meta, redispatch to get output shapes, cast back for coninuity
@@ -293,8 +289,6 @@ void op_interceptor(const c10::OperatorHandle& op, torch::jit::Stack* stack) {
     *stack = cast_stack_to_device(*stack, device); 
   }  
 
-  // after dispatch the stack contains outputs
-  //std::cout<<"Op Outputs: "<<op.schema().returns() << std::endl;
   std::vector<gcs::sim::cost_models::ArgSpec> outputs = capture_args(*stack, op.schema().returns(), "output");
   
   gcs::sim::cost_models::OpSpec op_spec = {op.schema().name(), inputs, outputs};

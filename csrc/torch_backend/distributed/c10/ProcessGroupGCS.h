@@ -1,11 +1,17 @@
+#pragma once
 #include <c10/util/intrusive_ptr.h>
 #include <torch/csrc/distributed/c10d/Backend.hpp>
 #include <torch/csrc/distributed/c10d/Store.hpp>
 #include <torch/csrc/distributed/c10d/Types.hpp>
 #include <torch/csrc/distributed/c10d/Utils.hpp>
 #include <torch/csrc/distributed/c10d/Work.hpp>
+#include <string>
+#include <sim_engine.h>
+
 
 namespace c10d::gpuclustersim{
+
+const std::string BACKEND_NAME = "SimCCL";
 
 class DummyWork : public Work {
   public:
@@ -25,14 +31,14 @@ class DummyWork : public Work {
 class ProcessGroupGCS : public Backend{
   public:
     struct Options : public Backend::Options {
-      explicit Options() : Backend::Options("SimCCL") {}
+      explicit Options() : Backend::Options(BACKEND_NAME) {}
     };
 
     explicit ProcessGroupGCS(int rank = -1, int size = -1);
     virtual ~ProcessGroupGCS();
     
     const std::string getBackendName() const override {
-      return std::string("SimCCL");
+      return BACKEND_NAME;
     }
 
     bool supportsSplitting() const override {
@@ -140,6 +146,7 @@ class ProcessGroupGCS : public Backend{
 
   private:
     const c10::intrusive_ptr<Options> options_; // nahuy nado?
+    void submit_comm_op_helper(std::string name, std::vector<at::Tensor>& tensors, int root=0, int peer=-1, std::vector<int64_t> input_counts = {}, std::vector<int64_t> output_counts = {});
 };
 
 }
