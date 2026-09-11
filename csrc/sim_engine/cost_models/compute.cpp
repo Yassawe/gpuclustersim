@@ -261,7 +261,7 @@ OpCost elementwise_cost(OpSpec& op_spec){
   ArgSpec self = op_spec.inputs[0];
   ArgSpec out = op_spec.outputs[0];
   
-  int64_t flops = out.tensor.numel; //todo: revise, 1 pass is not the case for a lot of ops, also can read multiple times
+  int64_t flops = out.tensor.numel; // todo: revise, 1 pass is not the case for a lot of ops, also can read multiple times
   int64_t bytes = total_tensor_bytes(op_spec.inputs) + total_tensor_bytes(op_spec.outputs);
 
   return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};

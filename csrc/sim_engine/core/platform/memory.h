@@ -10,6 +10,6 @@ struct ENABLE_EXPORT MemStats {
   int n_deallocations = 0;
 };
 
-//todo: memory bookkeeping
+// todo: memory bookkeeping
 
 }
