@@ -48,7 +48,7 @@ bool GCSWork::wait(std::chrono::milliseconds timeout) {
 
 void GCSWork::synchronize() {
   c10::StreamId caller_stream = c10::gpuclustersim::gcsGetStream(device_id_);
-  gcs::sim::advance_current_stream_time(static_cast<int>(device_id_), static_cast<int>(caller), end_time_);
+  gcs::sim::advance_current_stream_time(static_cast<int>(device_id_), static_cast<int>(caller_stream), end_time_);
 }
 
 void GCSWork::blockCurrentStream(){
@@ -170,8 +170,8 @@ c10::intrusive_ptr<Work> ProcessGroupGCS::submit_comm_op_helper(std::string name
 
   gcs::sim::submit_communication_op(static_cast<int>(device_id), static_cast<int>(current_comm_stream), comm_spec);
 
-  double end = c10::gpuclustersim::get_current_stream_time(static_cast<int>(device_id), static_cast<int>(current_comm_stream));
-  return c10::make_intrusive<GCSWork>(device, current_comm_stream, end);
+  double end = gcs::sim::get_current_stream_time(static_cast<int>(device_id), static_cast<int>(current_comm_stream));
+  return c10::make_intrusive<GCSWork>(device_id, current_comm_stream, end);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::broadcast(std::vector<at::Tensor>& tensors, const BroadcastOptions& opts) {
@@ -179,60 +179,49 @@ c10::intrusive_ptr<Work> ProcessGroupGCS::broadcast(std::vector<at::Tensor>& ten
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::allreduce(std::vector<at::Tensor>& tensors, const AllreduceOptions& opts){
-  submit_comm_op_helper("allreduce", tensors);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("allreduce", opts.asyncOp, tensors);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::allreduce_sparse(std::vector<at::Tensor>& tensors, const AllreduceOptions& opts){
-  submit_comm_op_helper("allreduce_sparse", tensors);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("allreduce_sparse", opts.asyncOp, tensors);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::allreduce_coalesced(std::vector<at::Tensor>& tensors, const AllreduceCoalescedOptions& opts) {
-  submit_comm_op_helper("allreduce_coalesced", tensors);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("allreduce_coalesced", opts.asyncOp, tensors);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::reduce(std::vector<at::Tensor>& tensors, const ReduceOptions& opts){
-  submit_comm_op_helper("reduce", tensors, opts.rootRank);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("reduce", opts.asyncOp, tensors, opts.rootRank);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::_allgather_base(at::Tensor& output_tensor, at::Tensor& input_tensor, const AllgatherOptions& opts){
   std::vector<at::Tensor> tensors = {input_tensor};
-  submit_comm_op_helper("allgather_base", tensors);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("allgather_base", opts.asyncOp, tensors);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::allgather(std::vector<std::vector<at::Tensor>>& outputs, std::vector<at::Tensor>& inputs, const AllgatherOptions& opts){
-  submit_comm_op_helper("allgather", inputs);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("allgather", opts.asyncOp, inputs);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::allgather_coalesced(std::vector<std::vector<at::Tensor>>& output_lists, std::vector<at::Tensor>& input_list, const AllgatherOptions& opts) {
-  submit_comm_op_helper("allgather_coalesced", input_list);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("allgather_coalesced", opts.asyncOp, input_list);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::allgather_into_tensor_coalesced(std::vector<at::Tensor>& outputs, std::vector<at::Tensor>& inputs, const AllgatherOptions& opts) {
-  submit_comm_op_helper("allgather_into_tensor_coalesced", inputs);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("allgather_into_tensor_coalesced", opts.asyncOp, inputs);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::gather(std::vector<std::vector<at::Tensor>>& outputs, std::vector<at::Tensor>& inputs, const GatherOptions& opts){
-  submit_comm_op_helper("gather", inputs, opts.rootRank);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("gather", opts.asyncOp, inputs, opts.rootRank);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::scatter(std::vector<at::Tensor>& outputs, std::vector<std::vector<at::Tensor>>& inputs, const ScatterOptions& opts){
-  submit_comm_op_helper("scatter", outputs, opts.rootRank);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("scatter", opts.asyncOp, outputs, opts.rootRank);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::_reduce_scatter_base(at::Tensor& outputTensor, at::Tensor& inputTensor, const ReduceScatterOptions& opts){
   std::vector<at::Tensor> tensors = {inputTensor};
-  submit_comm_op_helper("reduce_scatter_base", tensors);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("reduce_scatter_base", opts.asyncOp, tensors);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::reduce_scatter(std::vector<at::Tensor>& outputs, std::vector<std::vector<at::Tensor>>& inputs, const ReduceScatterOptions& opts){
@@ -240,45 +229,37 @@ c10::intrusive_ptr<Work> ProcessGroupGCS::reduce_scatter(std::vector<at::Tensor>
   for(auto& rank_tensors : inputs){
     flattened.insert(flattened.end(), rank_tensors.begin(), rank_tensors.end());
   }
-  submit_comm_op_helper("reduce_scatter", flattened);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("reduce_scatter", opts.asyncOp, flattened);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::reduce_scatter_tensor_coalesced(std::vector<at::Tensor>& outputTensors, std::vector<at::Tensor>& inputTensors, const ReduceScatterOptions& opts){
-  submit_comm_op_helper("reduce_scatter_tensor_coalesced", inputTensors);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("reduce_scatter_tensor_coalesced", opts.asyncOp, inputTensors);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::alltoall_base(at::Tensor& outputTensor, at::Tensor& inputTensor, std::vector<int64_t>& outputCounts, std::vector<int64_t>& inputCounts, const AllToAllOptions& opts){
   std::vector<at::Tensor> tensors = {inputTensor};
-  submit_comm_op_helper("alltoall_base", tensors, 0, -1, inputCounts, outputCounts);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("alltoall_base", opts.asyncOp, tensors, 0, -1, inputCounts, outputCounts);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::alltoall(std::vector<at::Tensor>& outputTensors, std::vector<at::Tensor>& inputTensors, const AllToAllOptions& opts){
-  submit_comm_op_helper("alltoall", inputTensors);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("alltoall", opts.asyncOp, inputTensors);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::send(std::vector<at::Tensor>& tensors, int dstRank, int tag){
-  submit_comm_op_helper("send", tensors, 0, dstRank);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("send", true, tensors, 0, dstRank);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::recv(std::vector<at::Tensor>& tensors, int srcRank, int tag){
-  submit_comm_op_helper("recv", tensors, 0, srcRank);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("recv", true, tensors, 0, srcRank);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::recvAnysource(std::vector<at::Tensor>& tensors, int tag){
-  submit_comm_op_helper("recvAnysource", tensors);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("recvAnysource", true, tensors);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::barrier(const BarrierOptions& opts){
   std::vector<at::Tensor> empty;
-  submit_comm_op_helper("barrier", empty);
-  return c10::make_intrusive<GCSWork>();
+  return submit_comm_op_helper("barrier", opts.asyncOp, empty);
 }
 
 }
