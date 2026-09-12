@@ -2,14 +2,14 @@
 
 namespace gcs::sim {
 
-static int g_num_devices = 1; // default
-static DeviceSpec g_device_spec;
-static thread_local int g_current_device = 0;
+static int g_num_devices = 1; // devices in group, local max 128
+static DeviceSpec g_device_spec; // homogenious, all devices are assumbed to be the same
+static thread_local int g_current_device = 0; // local device in-group index
 
 
-void init_devices(DeviceSpec device_spec, int n){
+void init_device_group(DeviceSpec device_spec, int G){
   g_device_spec = device_spec;
-  g_num_devices = n;
+  g_num_devices = G;
 }
 
 DeviceSpec get_device_spec(){

@@ -246,8 +246,7 @@ OpCost attention_backward_cost(OpSpec& op_spec){
   int64_t D  = Q.tensor.dims[3];
 
   int64_t flops = 8*B*H*S_q*S_k*D;
-  int64_t bytes = tensor_bytes(grad_out) + tensor_bytes(Q) + tensor_bytes(K) + tensor_bytes(V)
-                  + total_tensor_bytes(op_spec.outputs);
+  int64_t bytes = tensor_bytes(grad_out) + tensor_bytes(Q) + tensor_bytes(K) + tensor_bytes(V) + total_tensor_bytes(op_spec.outputs);
 
   return OpCost{flops, bytes, get_dominant_dtype(op_spec.inputs)};
 }
@@ -447,15 +446,9 @@ double duration_fn(OpCost& op_cost, DeviceSpec& device_spec){
 
 
 double estimate_compute_duration(OpSpec& op_spec, DeviceSpec& device_spec){
-  try{
-    OpCost op_cost = cost_router(op_spec);
-    double duration = duration_fn(op_cost, device_spec);
-    return duration;
-  }
-  catch(...){
-    std::cout<<"compute cost function error on op: "<<op_spec.name<<std::endl; // TODO: oob is not caught, use at()
-    return 0;
-  }
+  OpCost op_cost = cost_router(op_spec);
+  double duration = duration_fn(op_cost, device_spec);
+  return duration;
 }
 
 }

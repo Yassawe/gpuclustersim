@@ -13,8 +13,7 @@ struct ENABLE_EXPORT DeviceSpec {
   double mem_bandwidth; //gb/s
 };
 
-
-ENABLE_EXPORT void init_devices(DeviceSpec device_spec, int n);
+ENABLE_EXPORT void init_device_group(DeviceSpec device_spec, int G);
 ENABLE_EXPORT DeviceSpec get_device_spec(); 
 
 ENABLE_EXPORT int device_count();

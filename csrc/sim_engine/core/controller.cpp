@@ -14,10 +14,11 @@ void submit_compute_op(int device, int stream, cost_models::OpSpec& op_spec) {
   schedule_op_on_timeline(device, stream, op_spec.name, duration);
 }
 
-void submit_communication_op(int rank, int stream, cost_models::CommSpec& comm_spec){
+void submit_communication_op(int device, int stream, cost_models::CommSpec& comm_spec){
   // TopologySpec top_spec = get_topology();
   // double duration = cost_models::estimate_communication_duration(comm_spec, topology_spec);
-  // schedule_op_on_timeline(rank, stream, comm_spec.name, duration);
+  double duration = 100; //debug
+  schedule_op_on_timeline(device, stream, comm_spec.name, duration);
 }
 
 

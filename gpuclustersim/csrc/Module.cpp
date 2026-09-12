@@ -3,6 +3,7 @@
 #include <ATen/Context.h>
 #include <torch/csrc/utils/device_lazy_init.h>
 #include <runtime/DeviceFunctions.h>
+#include <distributed/c10d/ProcessGroupGCS.h>
 #include <sim_engine.h>
 
 namespace py = pybind11;
@@ -13,6 +14,8 @@ PYBIND11_MODULE(_C, m) {
     torch::utils::register_fork_handler_for_device_init(at::kPrivateUse1);
     at::globalContext().lazyInitDevice(c10::DeviceType::PrivateUse1);
   });
+
+  m.def("_create_simccl_backend", &c10d::gpuclustersim::create_simccl_backend);
 
   m.def("_get_device_count", []() {
     torch::utils::register_fork_handler_for_device_init(at::kPrivateUse1);
@@ -35,7 +38,7 @@ PYBIND11_MODULE(_C, m) {
     return static_cast<int32_t>(c10::gpuclustersim::gcsExchangeDevice(device_index));
   });
 
-  m.def("_init_devices", [](py::dict spec, int n) {
+  m.def("_init_device_group", [](py::dict spec, int n) {
     gcs::sim::DeviceSpec device_spec{};
     device_spec.fp64_tflops = spec["fp64_tflops"].cast<double>();
     device_spec.fp32_tflops = spec["fp32_tflops"].cast<double>();
@@ -43,7 +46,7 @@ PYBIND11_MODULE(_C, m) {
     device_spec.fp8_tflops = spec["fp8_tflops"].cast<double>();
     device_spec.mem_size = spec["mem_size"].cast<double>();
     device_spec.mem_bandwidth = spec["mem_bandwidth"].cast<double>();
-    gcs::sim::init_devices(device_spec, n);
+    gcs::sim::init_device_group(device_spec, n);
   });
 
    m.def("_get_timeline", []() {

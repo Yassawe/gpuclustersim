@@ -16,8 +16,9 @@ struct ENABLE_EXPORT StreamTimeline{
   std::vector<ScheduledOp> ops;
 };
 
-double get_current_stream_time(int device, int stream);
-void advance_current_stream_time(int device, int stream, double time);
+ENABLE_EXPORT double get_current_stream_time(int device, int stream);
+ENABLE_EXPORT void advance_current_stream_time(int device, int stream, double time);
+
 void schedule_op_on_timeline(int device, int stream, std::string name, double duration); 
 
 ENABLE_EXPORT std::vector<std::vector<StreamTimeline>> get_timeline();

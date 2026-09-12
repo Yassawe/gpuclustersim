@@ -1,15 +1,17 @@
-import sys
-import torch
 import os
-import json
+import sys
 
 if sys.platform == "win32":
   from ._utils import _load_dll_libraries
   _load_dll_libraries()
   del _load_dll_libraries
 
+import torch
+import torch.distributed as dist
 import gpuclustersim._C as _C
 import gpuclustersim.module
+import json
+
 
 torch.utils.rename_privateuse1_backend("gpuclustersim")
 torch._register_device_module("gpuclustersim", gpuclustersim.module)
@@ -17,12 +19,23 @@ torch.utils.generate_methods_for_privateuse1_backend(for_storage=True)
 
 _C._init()
 
-def init_devices(path, n):
+def _simccl_creator(dist_backend_opts, backend_options):
+  return _C._create_simccl_backend(
+    dist_backend_opts.group_rank,
+    dist_backend_opts.group_size,
+    list(dist_backend_opts.global_ranks_in_group),
+    dist_backend_opts.store,
+  )
+
+dist.Backend.register_backend("simccl", _simccl_creator, extended_api=True, devices=["gpuclustersim"])
+
+# functions exposed to the user
+def init_device_group(path, n):
   with open(path, "r") as f:
     spec = json.load(f)
-  _C._init_devices(spec, n)
+  _C._init_device_group(spec, n)
 
-def dump_timeline(path):
+def save_timeline(path):
   raw = _C._get_timeline()
 
   trace_events = []
@@ -50,3 +63,8 @@ def dump_timeline(path):
 
 def reset_timeline():
   _C._reset_timeline()
+
+__all__ = [
+  "init_device_group",
+  "save_timeline"
+]

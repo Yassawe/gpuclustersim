@@ -6,26 +6,38 @@
 #include <torch/csrc/distributed/c10d/Utils.hpp>
 #include <torch/csrc/distributed/c10d/Work.hpp>
 #include <string>
+#include <cstring>
+#include <vector>
+#include <unordered_map>
+#include <atomic>
 #include <sim_engine.h>
+#include <utils/Macros.h>
 
 
 namespace c10d::gpuclustersim{
 
-const std::string BACKEND_NAME = "SimCCL";
+const std::string BACKEND_NAME = "simccl";
 
-class DummyWork : public Work {
+// a simple factory function, because exposing class constructor to pybind directly looks ugly and boilerplaity, while function is one line
+ENABLE_EXPORT c10::intrusive_ptr<Backend> create_simccl_backend(int rank, int size, std::vector<int64_t> global_ranks_in_group, c10::intrusive_ptr<Store> store);
+
+class GCSWork : public Work {
   public:
-    DummyWork();
-    virtual ~DummyWork();
+    GCSWork(c10::DeviceIndex device_id, c10::StreamId comm_stream, double end_time);
+    virtual ~GCSWork();
     bool isCompleted() override;
     bool isSuccess() const override;
     bool wait(std::chrono::milliseconds timeout) override;
     void synchronize() override;
+    void blockCurrentStream() override;
     void abort() override;
     c10::intrusive_ptr<c10::ivalue::Future> getFuture() override;
 
   private:
     c10::intrusive_ptr<c10::ivalue::Future> future_;
+    c10::DeviceIndex device_id_;
+    c10::StreamId comm_stream_;
+    double end_time_;
 };
 
 class ProcessGroupGCS : public Backend{
@@ -34,7 +46,7 @@ class ProcessGroupGCS : public Backend{
       explicit Options() : Backend::Options(BACKEND_NAME) {}
     };
 
-    explicit ProcessGroupGCS(int rank = -1, int size = -1);
+    explicit ProcessGroupGCS(int rank, int size, std::vector<int64_t> global_ranks_in_group, c10::intrusive_ptr<Store> store);
     virtual ~ProcessGroupGCS();
     
     const std::string getBackendName() const override {
@@ -145,8 +157,21 @@ class ProcessGroupGCS : public Backend{
       const BarrierOptions& opts = BarrierOptions()) override;
 
   private:
-    const c10::intrusive_ptr<Options> options_; // nahuy nado?
-    void submit_comm_op_helper(std::string name, std::vector<at::Tensor>& tensors, int root=0, int peer=-1, std::vector<int64_t> input_counts = {}, std::vector<int64_t> output_counts = {});
+    c10::intrusive_ptr<Options> options_; // nahuy nado?
+    c10::intrusive_ptr<Store> store_; // for IPC, in my case it is to randezvous before collective comm and agree on start time
+    std::unordered_map<c10::DeviceIndex, c10::StreamId> comm_streams_; // 1 per device, each PG creates own instance of this class
+    std::vector<int64_t> participants_;
+    c10::StreamId create_or_get_comm_stream(c10::DeviceIndex device_id);
+    double rendezvous(uint64_t seq, double ready);
+    std::atomic<uint64_t> seq_{0}; // identifier 
+    c10::intrusive_ptr<Work> submit_comm_op_helper(
+      std::string name, 
+      bool asyncOp,
+      std::vector<at::Tensor>& tensors, 
+      int root=0, 
+      int peer=-1, 
+      std::vector<int64_t> input_counts = {}, 
+      std::vector<int64_t> output_counts = {});
 };
 
 }
