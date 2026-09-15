@@ -4,6 +4,7 @@
 #include "runtime/Events.h"
 #include "runtime/Dtype.h"
 #include <sim_engine.h>
+#include <ATen/core/jit_type.h>
 #include <mutex>
 #include <numeric>
 #include <algorithm>
@@ -18,15 +19,21 @@ c10::intrusive_ptr<Backend> create_simccl_backend(int rank, int size, std::vecto
 }
 
 // GCSWork 
-GCSWork::GCSWork(c10::DeviceIndex device_id, c10::StreamId comm_stream, double end_time) : Work(-1, OpType::UNKNOWN), future_(c10::make_intrusive<c10::ivalue::Future>(c10::NoneType::get())) {
+GCSWork::GCSWork(c10::DeviceIndex device_id, c10::StreamId comm_stream, double end_time, std::vector<at::Tensor> tensors) : Work(-1, OpType::UNKNOWN) {
 
   device_id_ = device_id;
   comm_stream_ = comm_stream;
   end_time_ = end_time;
+  outputs_ = std::move(tensors);
 
+  // it is imperative that the current device stream when future is created and mark completed is the communication stream
+  c10::StreamId caller_stream = c10::gpuclustersim::gcsExchangeStream(device_id_, comm_stream_); 
+  future_ = c10::make_intrusive<c10::ivalue::Future>(c10::ListType::ofTensors(), std::vector<c10::Device>{c10::Device(c10::DeviceType::PrivateUse1, device_id_)});
   if (!future_->completed()) {
-    future_->markCompleted(c10::IValue());
+    future_->markCompleted(c10::IValue(c10::List<at::Tensor>(outputs_)));
   }
+  c10::gpuclustersim::gcsExchangeStream(device_id_, caller_stream);
+
   finish();
 }
 
@@ -42,6 +49,7 @@ bool GCSWork::isSuccess() const {
 }
 
 bool GCSWork::wait(std::chrono::milliseconds timeout) {
+  (void) timeout;
   synchronize();
   return true;
 }
@@ -115,7 +123,7 @@ double ProcessGroupGCS::rendezvous(uint64_t seq, double ready) {
 }
 
 
-c10::intrusive_ptr<Work> ProcessGroupGCS::submit_comm_op_helper(std::string name, bool asyncOp, std::vector<at::Tensor>& tensors, int root, int peer, std::vector<int64_t> input_counts, std::vector<int64_t> output_counts){
+c10::intrusive_ptr<Work> ProcessGroupGCS::submit_comm_op_helper(std::string name, bool asyncOp, std::vector<at::Tensor>& tensors, int root, std::vector<int64_t> input_counts, std::vector<int64_t> output_counts){
 
   int rank = getRank();
   int world_size = getSize();
@@ -163,7 +171,7 @@ c10::intrusive_ptr<Work> ProcessGroupGCS::submit_comm_op_helper(std::string name
     payload,
     participants_, // class member, created at construction of process group
     root,
-    peer,
+    -1, // no peer in symmetric collective ops (non p2p)
     input_counts,
     output_counts
   };
@@ -171,7 +179,8 @@ c10::intrusive_ptr<Work> ProcessGroupGCS::submit_comm_op_helper(std::string name
   gcs::sim::submit_communication_op(static_cast<int>(device_id), static_cast<int>(current_comm_stream), comm_spec);
 
   double end = gcs::sim::get_current_stream_time(static_cast<int>(device_id), static_cast<int>(current_comm_stream));
-  return c10::make_intrusive<GCSWork>(device_id, current_comm_stream, end);
+  
+  return c10::make_intrusive<GCSWork>(device_id, current_comm_stream, end, std::move(tensors));
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::broadcast(std::vector<at::Tensor>& tensors, const BroadcastOptions& opts) {
@@ -238,7 +247,7 @@ c10::intrusive_ptr<Work> ProcessGroupGCS::reduce_scatter_tensor_coalesced(std::v
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::alltoall_base(at::Tensor& outputTensor, at::Tensor& inputTensor, std::vector<int64_t>& outputCounts, std::vector<int64_t>& inputCounts, const AllToAllOptions& opts){
   std::vector<at::Tensor> tensors = {inputTensor};
-  return submit_comm_op_helper("alltoall_base", opts.asyncOp, tensors, 0, -1, inputCounts, outputCounts);
+  return submit_comm_op_helper("alltoall_base", opts.asyncOp, tensors, 0, inputCounts, outputCounts);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::alltoall(std::vector<at::Tensor>& outputTensors, std::vector<at::Tensor>& inputTensors, const AllToAllOptions& opts){
@@ -246,15 +255,15 @@ c10::intrusive_ptr<Work> ProcessGroupGCS::alltoall(std::vector<at::Tensor>& outp
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::send(std::vector<at::Tensor>& tensors, int dstRank, int tag){
-  return submit_comm_op_helper("send", true, tensors, 0, dstRank);
+  return nullptr; // p2p have to be handled separately
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::recv(std::vector<at::Tensor>& tensors, int srcRank, int tag){
-  return submit_comm_op_helper("recv", true, tensors, 0, srcRank);
+  return nullptr;
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::recvAnysource(std::vector<at::Tensor>& tensors, int tag){
-  return submit_comm_op_helper("recvAnysource", true, tensors);
+  return nullptr;
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::barrier(const BarrierOptions& opts){

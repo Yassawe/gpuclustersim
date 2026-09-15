@@ -23,7 +23,7 @@ ENABLE_EXPORT c10::intrusive_ptr<Backend> create_simccl_backend(int rank, int si
 
 class GCSWork : public Work {
   public:
-    GCSWork(c10::DeviceIndex device_id, c10::StreamId comm_stream, double end_time);
+    GCSWork(c10::DeviceIndex device_id, c10::StreamId comm_stream, double end_time, std::vector<at::Tensor> tensors = {});
     virtual ~GCSWork();
     bool isCompleted() override;
     bool isSuccess() const override;
@@ -35,6 +35,7 @@ class GCSWork : public Work {
 
   private:
     c10::intrusive_ptr<c10::ivalue::Future> future_;
+    std::vector<at::Tensor> outputs_;
     c10::DeviceIndex device_id_;
     c10::StreamId comm_stream_;
     double end_time_;
@@ -163,15 +164,22 @@ class ProcessGroupGCS : public Backend{
     std::vector<int64_t> participants_;
     c10::StreamId create_or_get_comm_stream(c10::DeviceIndex device_id);
     double rendezvous(uint64_t seq, double ready);
-    std::atomic<uint64_t> seq_{0}; // identifier 
+    std::atomic<uint64_t> seq_{0};
+    double rendezvous_p2p(uint64_t seq_p2p, double ready);
+    std::atomic<uint64_t> seq_p2p_{0};
     c10::intrusive_ptr<Work> submit_comm_op_helper(
       std::string name, 
       bool asyncOp,
       std::vector<at::Tensor>& tensors, 
       int root=0, 
-      int peer=-1, 
       std::vector<int64_t> input_counts = {}, 
       std::vector<int64_t> output_counts = {});
+    c10::intrusive_ptr<Work> submit_p2p_comm_op_helper(
+      std::string name,
+      std::vector<at::Tensor>& tensors,
+      int src,
+      int dst
+    );
 };
 
 }

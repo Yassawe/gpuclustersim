@@ -3,19 +3,22 @@
 #include <ATen/Context.h>
 #include <torch/csrc/utils/device_lazy_init.h>
 #include <runtime/DeviceFunctions.h>
+#include <runtime/Streams.h>
+#include <runtime/Events.h>
 #include <distributed/c10d/ProcessGroupGCS.h>
 #include <sim_engine.h>
 
 namespace py = pybind11;
 
 PYBIND11_MODULE(_C, m) {
-
   m.def("_init", []() {
     torch::utils::register_fork_handler_for_device_init(at::kPrivateUse1);
     at::globalContext().lazyInitDevice(c10::DeviceType::PrivateUse1);
   });
 
   m.def("_create_simccl_backend", &c10d::gpuclustersim::create_simccl_backend);
+
+  // device functions
 
   m.def("_get_device_count", []() {
     torch::utils::register_fork_handler_for_device_init(at::kPrivateUse1);
@@ -32,12 +35,43 @@ PYBIND11_MODULE(_C, m) {
     c10::gpuclustersim::gcsSetDevice(device);
   });
 
-  m.def("_exchangeDevice", [](int device_index) -> int32_t {
+  m.def("_exchange_device", [](int device_index) {
     if (device_index < 0) return -1;
     torch::utils::device_lazy_init(at::kPrivateUse1);
-    return static_cast<int32_t>(c10::gpuclustersim::gcsExchangeDevice(device_index));
+    return static_cast<int>(c10::gpuclustersim::gcsExchangeDevice(device_index));
   });
 
+  m.def("_device_type", []() {
+    return static_cast<int>(c10::DeviceType::PrivateUse1);
+  });
+
+  // stream functions
+
+  m.def("_get_stream", [](int device) {
+    torch::utils::device_lazy_init(at::kPrivateUse1);
+    if (device < 0) device = static_cast<int>(c10::gpuclustersim::gcsCurrentDevice());
+    return static_cast<int>(c10::gpuclustersim::gcsGetStream(static_cast<c10::DeviceIndex>(device)));
+  });
+
+  m.def("_get_default_stream", [](int device) {
+    torch::utils::device_lazy_init(at::kPrivateUse1);
+    if (device < 0) device = static_cast<int>(c10::gpuclustersim::gcsCurrentDevice());
+    return static_cast<int>(c10::gpuclustersim::gcsGetDefaultStream(static_cast<c10::DeviceIndex>(device)));
+  });
+
+  m.def("_get_new_stream", [](int device) {
+    torch::utils::device_lazy_init(at::kPrivateUse1);
+    if (device < 0) device = static_cast<int>(c10::gpuclustersim::gcsCurrentDevice());
+    return static_cast<int>(c10::gpuclustersim::gcsGetNewStream(static_cast<c10::DeviceIndex>(device)));
+  });
+
+  m.def("_exchange_stream", [](int device, int stream) {
+    torch::utils::device_lazy_init(at::kPrivateUse1);
+    if (device < 0) device = static_cast<int>(c10::gpuclustersim::gcsCurrentDevice());
+    return static_cast<int>(c10::gpuclustersim::gcsExchangeStream(static_cast<c10::DeviceIndex>(device), static_cast<c10::StreamId>(stream)));
+  });
+
+  // user facing functions
   m.def("_init_device_group", [](py::dict spec, int n) {
     gcs::sim::DeviceSpec device_spec{};
     device_spec.fp64_tflops = spec["fp64_tflops"].cast<double>();
@@ -49,7 +83,7 @@ PYBIND11_MODULE(_C, m) {
     gcs::sim::init_device_group(device_spec, n);
   });
 
-   m.def("_get_timeline", []() {
+  m.def("_get_timeline", []() {
     auto timeline = gcs::sim::get_timeline();
     py::list py_timeline;
     for (const auto& d : timeline) {
@@ -74,7 +108,7 @@ PYBIND11_MODULE(_C, m) {
   });
 
   m.def("_reset_timeline", []() {
-  gcs::sim::reset_timeline();
+    gcs::sim::reset_timeline();
   });
 
 }

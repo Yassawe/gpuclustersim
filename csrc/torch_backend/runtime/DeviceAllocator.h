@@ -27,8 +27,8 @@ public:
   DeviceIndex PtrToDevice(void* ptr);
 
 private: 
-  mutable std::mutex mutex_;
-  std::vector<gcs::sim::MemStats> per_device_stats;
+  mutable std::mutex mutex_; //mutex guards the per_device_memstats i guess?
+  std::vector<gcs::sim::MemStats> per_device_memstats;
   std::unordered_map<void*, std::pair<DeviceIndex, size_t>> allocation_info;
 };
 

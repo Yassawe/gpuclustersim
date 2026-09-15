@@ -69,6 +69,8 @@ at::Tensor& set_source_Storage_storage_offset_(
 
 at::Tensor view(const at::Tensor& self, c10::SymIntArrayRef size);
 
+void record_stream(at::Tensor& self, c10::Stream s);
+
 at::Tensor meta_convolution_overrideable(
   const at::Tensor& input,
   const at::Tensor& weight,

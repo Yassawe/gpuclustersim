@@ -1,6 +1,7 @@
 #pragma once
 #include <c10/core/Device.h>
 #include <c10/core/Stream.h>
+#include <utils/Macros.h>
 
 namespace c10::gpuclustersim {
 

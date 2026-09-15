@@ -11,14 +11,20 @@ namespace {
 
 namespace c10::gpuclustersim {
 
-GCSDeviceAllocator::GCSDeviceAllocator(): per_device_stats(gcsDeviceCount()) {}
+GCSDeviceAllocator::GCSDeviceAllocator(): per_device_memstats(gcsDeviceCount()) {}
 
 at::DataPtr GCSDeviceAllocator::allocate(size_t nbytes) {
   std::lock_guard<std::mutex> lock(mutex_); 
 
   void* ptr = malloc(1); 
-  DeviceIndex device_id = gcsCurrentDevice();  
-  auto& stats = per_device_stats[device_id];
+  DeviceIndex device_id = gcsCurrentDevice();
+  
+  if (device_id < 0) device_id = 0;
+  if (static_cast<int>(device_id) >= per_device_memstats.size()) {
+    per_device_memstats.resize(device_id + 1);
+  }
+
+  gcs::sim::MemStats& stats = per_device_memstats[device_id];
   stats.current_allocated+=nbytes;
   if (stats.current_allocated>stats.peak_allocated) stats.peak_allocated=stats.current_allocated;
   stats.n_allocations++;
@@ -36,7 +42,7 @@ void GCSDeviceAllocator::deallocate(void* ptr) {
   auto it = g_allocator.allocation_info.find(ptr);
   DeviceIndex device_id = it->second.first;
   size_t nbytes = it->second.second;
-  auto& stats = g_allocator.per_device_stats[device_id];
+  gcs::sim::MemStats& stats = g_allocator.per_device_memstats[device_id];
   stats.current_allocated-=nbytes;
   stats.n_deallocations++;
   g_allocator.allocation_info.erase(it);
@@ -50,11 +56,19 @@ void GCSDeviceAllocator::copy_data(void* dest, const void* src, std::size_t coun
 
 gcs::sim::MemStats GCSDeviceAllocator::getStats(DeviceIndex device_id){
   std::lock_guard<std::mutex> lock(mutex_); 
-  return per_device_stats[device_id];
+  if (device_id < 0) device_id = 0;
+  if (static_cast<int>(device_id) >= per_device_memstats.size()) {
+    per_device_memstats.resize(device_id + 1);
+  }
+  return per_device_memstats[device_id];
 }
 
 void GCSDeviceAllocator::resetStats(DeviceIndex device_id){
-  per_device_stats[device_id] = gcs::sim::MemStats{};
+  if (device_id < 0) device_id = 0;
+  if (static_cast<int>(device_id) >= per_device_memstats.size()) {
+    per_device_memstats.resize(device_id + 1);
+  }
+  per_device_memstats[device_id] = gcs::sim::MemStats{};
 }
 
 DeviceIndex GCSDeviceAllocator::PtrToDevice(void* ptr) {

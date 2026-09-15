@@ -8,6 +8,7 @@ TORCH_LIBRARY_IMPL(aten, PrivateUse1, m) {
   m.impl("as_strided", at::native::gpuclustersim::as_strided);
   m.impl("resize_", at::native::gpuclustersim::resize_);
   m.impl("_reshape_alias", at::native::gpuclustersim::_reshape_alias);
+  m.impl("record_stream", at::native::gpuclustersim::record_stream);
   m.impl("_copy_from", at::native::gpuclustersim::_copy_from);
   m.impl("_copy_from_and_resize", at::native::gpuclustersim::_copy_from_and_resize);
   m.impl("_local_scalar_dense", at::native::gpuclustersim::_local_scalar_dense);

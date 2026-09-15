@@ -79,6 +79,11 @@ at::Tensor _reshape_alias(
   self, C10_AS_INTARRAYREF_SLOW(size), C10_AS_INTARRAYREF_SLOW(stride));
 }
 
+// needed by FSDP 
+void record_stream(at::Tensor& self, c10::Stream s) {
+  (void) self;
+  (void) s;
+}
 
 // copy ops
 
