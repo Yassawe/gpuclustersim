@@ -19,11 +19,11 @@ namespace c10d::gpuclustersim{
 const std::string BACKEND_NAME = "simccl";
 
 // a simple factory function, because exposing class constructor to pybind directly looks ugly and boilerplaity, while function is one line
-ENABLE_EXPORT c10::intrusive_ptr<Backend> create_simccl_backend(int rank, int size, std::vector<int64_t> global_ranks_in_group, c10::intrusive_ptr<Store> store);
+ENABLE_EXPORT c10::intrusive_ptr<Backend> create_simccl_backend(int rank, int size, std::vector<int64_t>& global_ranks_in_group, c10::intrusive_ptr<Store>& store);
 
 class GCSWork : public Work {
   public:
-    GCSWork(c10::DeviceIndex device_id, c10::StreamId comm_stream, double end_time, std::vector<at::Tensor> tensors = {});
+    GCSWork(c10::DeviceIndex device_id, c10::StreamId comm_stream, double end_time, std::vector<at::Tensor>& tensors);
     virtual ~GCSWork();
     bool isCompleted() override;
     bool isSuccess() const override;
@@ -47,7 +47,7 @@ class ProcessGroupGCS : public Backend{
       explicit Options() : Backend::Options(BACKEND_NAME) {}
     };
 
-    explicit ProcessGroupGCS(int rank, int size, std::vector<int64_t> global_ranks_in_group, c10::intrusive_ptr<Store> store);
+    explicit ProcessGroupGCS(int rank, int size, std::vector<int64_t>& global_ranks_in_group, c10::intrusive_ptr<Store>& store);
     virtual ~ProcessGroupGCS();
     
     const std::string getBackendName() const override {
@@ -165,8 +165,9 @@ class ProcessGroupGCS : public Backend{
     c10::StreamId create_or_get_comm_stream(c10::DeviceIndex device_id);
     double rendezvous(uint64_t seq, double ready);
     std::atomic<uint64_t> seq_{0};
-    double rendezvous_p2p(uint64_t seq_p2p, double ready);
-    std::atomic<uint64_t> seq_p2p_{0};
+    double rendezvous_p2p(int src, int dst, uint64_t seq_p2p, double ready);
+    std::vector<std::uint64_t> send_seq_;
+    std::vector<std::uint64_t> recv_seq_;
     c10::intrusive_ptr<Work> submit_comm_op_helper(
       std::string name, 
       bool asyncOp,
@@ -174,7 +175,7 @@ class ProcessGroupGCS : public Backend{
       int root=0, 
       std::vector<int64_t> input_counts = {}, 
       std::vector<int64_t> output_counts = {});
-    c10::intrusive_ptr<Work> submit_p2p_comm_op_helper(
+    c10::intrusive_ptr<Work> submit_p2p_op_helper(
       std::string name,
       std::vector<at::Tensor>& tensors,
       int src,

@@ -14,17 +14,17 @@ namespace c10d::gpuclustersim{
 
 static std::mutex mutex_; 
 
-c10::intrusive_ptr<Backend> create_simccl_backend(int rank, int size, std::vector<int64_t> global_ranks_in_group, c10::intrusive_ptr<Store> store){
-  return c10::make_intrusive<ProcessGroupGCS>(rank, size, std::move(global_ranks_in_group), std::move(store));
+c10::intrusive_ptr<Backend> create_simccl_backend(int rank, int size, std::vector<int64_t>& global_ranks_in_group, c10::intrusive_ptr<Store>& store){
+  return c10::make_intrusive<ProcessGroupGCS>(rank, size, global_ranks_in_group, store);
 }
 
 // GCSWork 
-GCSWork::GCSWork(c10::DeviceIndex device_id, c10::StreamId comm_stream, double end_time, std::vector<at::Tensor> tensors) : Work(-1, OpType::UNKNOWN) {
+GCSWork::GCSWork(c10::DeviceIndex device_id, c10::StreamId comm_stream, double end_time, std::vector<at::Tensor>& tensors) : Work(-1, OpType::UNKNOWN) {
 
   device_id_ = device_id;
   comm_stream_ = comm_stream;
   end_time_ = end_time;
-  outputs_ = std::move(tensors);
+  outputs_ = tensors;
 
   // it is imperative that the current device stream when future is created and mark completed is the communication stream
   c10::StreamId caller_stream = c10::gpuclustersim::gcsExchangeStream(device_id_, comm_stream_); 
@@ -71,7 +71,7 @@ c10::intrusive_ptr<c10::ivalue::Future> GCSWork::getFuture() {
 
 // ProcessGroupGCS
 
-ProcessGroupGCS::ProcessGroupGCS(int rank, int size, std::vector<int64_t> global_ranks_in_group, c10::intrusive_ptr<Store> store) : Backend(rank, size) {
+ProcessGroupGCS::ProcessGroupGCS(int rank, int size, std::vector<int64_t>& global_ranks_in_group, c10::intrusive_ptr<Store>& store) : Backend(rank, size) {
   if (global_ranks_in_group.empty()) {
     participants_.resize(std::max(0, size));
     std::iota(participants_.begin(), participants_.end(), 0);
@@ -79,7 +79,9 @@ ProcessGroupGCS::ProcessGroupGCS(int rank, int size, std::vector<int64_t> global
     participants_ = global_ranks_in_group;
   }
   options_ = c10::make_intrusive<Options>();
-  store_ = std::move(store); 
+  store_ = store; 
+  send_seq_.resize(size, 0);
+  recv_seq_.resize(size, 0);
 }
 
 ProcessGroupGCS::~ProcessGroupGCS() = default;
@@ -99,8 +101,8 @@ c10::StreamId ProcessGroupGCS::create_or_get_comm_stream(c10::DeviceIndex device
 void sync_streams(c10::DeviceIndex device_id, c10::StreamId compute_stream, c10::StreamId comm_stream){
   // makes communication stream wait until compute stream current end. Prevents "going back in time" bug on simulated timeline
   // в случае если комм стрим заканчивает работу раньше чем комп стрим перед тем как вызвать еще один коллектив колл, 
-  // в реальной жизни он бы вызвал его в настоящем времени, т.е. сейчас, но тк стримы разные если сделать по тупому без синха, он аппендится в комм стрим на точку раньше, т.е. в прошлое, что естественно не правильно
-  // релевантно только когда asyncOp=true, потому что иначе ивенты и стримы хендлятся апстрим кодом (FSDP и тд, не доходят до сюда крч)
+  // в реальной жизни он бы вызвал его в настоящем времени, т.е. сейчас, но тк стримы разные и в виртуальном времени, то если сделать по тупому без эксплисит синха, он аппендится в комм стрим на точку раньше, т.е. в прошлое, что естественно не правильно
+  // релевантно только когда asyncOp=true, потому что иначе ивенты и стримы хендлятся апстрим кодом (FSDP и тд, не доходят до сюда)
   void* ev = nullptr;
   c10::gpuclustersim::gcsRecordEvent(&ev, device_id, compute_stream);
   c10::gpuclustersim::gcsBlockEvent(ev, device_id, comm_stream); 
@@ -123,32 +125,20 @@ double ProcessGroupGCS::rendezvous(uint64_t seq, double ready) {
 }
 
 
-c10::intrusive_ptr<Work> ProcessGroupGCS::submit_comm_op_helper(std::string name, bool asyncOp, std::vector<at::Tensor>& tensors, int root, std::vector<int64_t> input_counts, std::vector<int64_t> output_counts){
+double ProcessGroupGCS::rendezvous_p2p(int src, int dst, uint64_t seq_p2p, double ready) {
+  const std::string base = BACKEND_NAME + "/p2p/" + std::to_string(src) + "/" + std::to_string(dst) + "/" + std::to_string(seq_p2p) + "/";
+  store_->set(base + std::to_string(getRank()), std::to_string(ready));
 
-  int rank = getRank();
-  int world_size = getSize();
+  std::vector<std::string> keys = {base + std::to_string(src), base + std::to_string(dst)};
 
-  c10::DeviceIndex device_id = c10::gpuclustersim::gcsCurrentDevice();
-  c10::StreamId caller_stream = c10::gpuclustersim::gcsGetStream(device_id); // compute stream if asyncOp, and comm stream if not
+  store_->wait(keys);
 
-  c10::StreamId current_comm_stream;
+  double T = 0;
+  for (const auto& k : keys) T = std::max(T, std::stod(store_->get_to_str(k)));
+  return T;
+}
 
-  if (asyncOp){
-    current_comm_stream = create_or_get_comm_stream(device_id);
-    sync_streams(device_id, caller_stream, current_comm_stream);
-  }
-  else {
-    current_comm_stream = caller_stream;
-  }
-
-
-  // ensuring every rank agrees when to start the collective
-  double ready = gcs::sim::get_current_stream_time(static_cast<int>(device_id), static_cast<int>(current_comm_stream));
-  uint64_t seq = seq_.fetch_add(1); 
-  double T_max = rendezvous(seq, ready);
-  gcs::sim::advance_current_stream_time(static_cast<int>(device_id), static_cast<int>(current_comm_stream), T_max);
-
-  // payload
+std::vector<gcs::sim::cost_models::TensorSpec> build_payload(std::vector<at::Tensor>& tensors){
   std::vector<gcs::sim::cost_models::TensorSpec> payload;
   payload.reserve(tensors.size());
   for(int i=0; i<tensors.size(); i++){
@@ -163,24 +153,94 @@ c10::intrusive_ptr<Work> ProcessGroupGCS::submit_comm_op_helper(std::string name
     }
     payload.push_back(t_spec);
   }
+  return payload;
+}
+
+c10::intrusive_ptr<Work> ProcessGroupGCS::submit_comm_op_helper(std::string name, bool asyncOp, std::vector<at::Tensor>& tensors, int root, std::vector<int64_t> input_counts, std::vector<int64_t> output_counts){
+
+  int rank = getRank();
+  int world_size = getSize();
+
+  c10::DeviceIndex device_id = c10::gpuclustersim::gcsCurrentDevice();
+  c10::StreamId caller_stream = c10::gpuclustersim::gcsGetStream(device_id); // is compute stream if asyncOp, and comm stream if not
+
+  c10::StreamId current_comm_stream;
+
+  if (asyncOp){
+    current_comm_stream = create_or_get_comm_stream(device_id);
+    sync_streams(device_id, caller_stream, current_comm_stream);
+  }
+  else {
+    current_comm_stream = caller_stream; // if asyncOp=false, then  torch promises that sync is handled by upstream code (?)
+  }
+
+
+  // ensuring every rank agrees when to start the collective
+  double ready = gcs::sim::get_current_stream_time(static_cast<int>(device_id), static_cast<int>(current_comm_stream));
+  uint64_t seq = seq_.fetch_add(1); 
+  double T_max = rendezvous(seq, ready);
+  gcs::sim::advance_current_stream_time(static_cast<int>(device_id), static_cast<int>(current_comm_stream), T_max);
 
   gcs::sim::cost_models::CommSpec comm_spec{
     name,
     rank,
     world_size,
-    payload,
+    build_payload(tensors),
     participants_, // class member, created at construction of process group
     root,
-    -1, // no peer in symmetric collective ops (non p2p)
+    -1, 
     input_counts,
     output_counts
   };
 
   gcs::sim::submit_communication_op(static_cast<int>(device_id), static_cast<int>(current_comm_stream), comm_spec);
-
   double end = gcs::sim::get_current_stream_time(static_cast<int>(device_id), static_cast<int>(current_comm_stream));
+  return c10::make_intrusive<GCSWork>(device_id, current_comm_stream, end, tensors);
+}
+
+c10::intrusive_ptr<Work> ProcessGroupGCS::submit_p2p_op_helper(std::string name, std::vector<at::Tensor>& tensors, int src, int dst){
+
+  int rank = getRank();
+  int world_size = getSize();
+
+  c10::DeviceIndex device_id = c10::gpuclustersim::gcsCurrentDevice();
+  c10::StreamId caller_stream = c10::gpuclustersim::gcsGetStream(device_id);
+
+  if (src == dst){
+    double end = gcs::sim::get_current_stream_time(static_cast<int>(device_id), static_cast<int>(caller_stream));
+    return c10::make_intrusive<GCSWork>(device_id, caller_stream, end, tensors);
+  }
+
+  bool is_send = name == "send";
+  int peer = is_send ? dst : src;
+
+  uint64_t seq_p2p;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    seq_p2p = is_send ? send_seq_[peer]++ : recv_seq_[peer]++;
+  }
+
+  double ready = gcs::sim::get_current_stream_time(static_cast<int>(device_id), static_cast<int>(caller_stream));
+  double T_max = rendezvous_p2p(src, dst, seq_p2p, ready);
+  gcs::sim::advance_current_stream_time(static_cast<int>(device_id), static_cast<int>(caller_stream), T_max);
+
+  gcs::sim::cost_models::CommSpec comm_spec{
+    name,
+    rank,
+    world_size,
+    build_payload(tensors),
+    participants_,
+    0,
+    peer,
+    {},
+    {}
+  };
+
+  gcs::sim::submit_communication_op(static_cast<int>(device_id), static_cast<int>(caller_stream), comm_spec);
+
+  double end = gcs::sim::get_current_stream_time(static_cast<int>(device_id), static_cast<int>(caller_stream));
   
-  return c10::make_intrusive<GCSWork>(device_id, current_comm_stream, end, std::move(tensors));
+  return c10::make_intrusive<GCSWork>(device_id, caller_stream, end, tensors);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::broadcast(std::vector<at::Tensor>& tensors, const BroadcastOptions& opts) {
@@ -255,15 +315,19 @@ c10::intrusive_ptr<Work> ProcessGroupGCS::alltoall(std::vector<at::Tensor>& outp
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::send(std::vector<at::Tensor>& tensors, int dstRank, int tag){
-  return nullptr; // p2p have to be handled separately
+  return submit_p2p_op_helper("send", tensors, getRank(), dstRank);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::recv(std::vector<at::Tensor>& tensors, int srcRank, int tag){
-  return nullptr;
+  return submit_p2p_op_helper("recv", tensors, srcRank, getRank());
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::recvAnysource(std::vector<at::Tensor>& tensors, int tag){
-  return nullptr;
+  //noop, basic things for functional correctness. safe to noop, barely used in 99% of training scripts and is usually used for like small things like configs, which won't meaningfully affect cost modeling anyway.
+  c10::DeviceIndex device_id = c10::gpuclustersim::gcsCurrentDevice();
+  c10::StreamId caller_stream = c10::gpuclustersim::gcsGetStream(device_id);
+  double end = gcs::sim::get_current_stream_time(static_cast<int>(device_id), static_cast<int>(caller_stream));
+  return c10::make_intrusive<GCSWork>(device_id, caller_stream, end, tensors);
 }
 
 c10::intrusive_ptr<Work> ProcessGroupGCS::barrier(const BarrierOptions& opts){
