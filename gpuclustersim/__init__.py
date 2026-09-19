@@ -1,5 +1,21 @@
 import os
+import socket as _socket
 import sys
+
+def _valid_master_addr(addr):
+  if not addr:
+    return False
+  if ":" in addr or addr.endswith(".ip6.arpa"):
+    return False
+  try:
+    _socket.inet_aton(addr)
+    return True
+  except OSError:
+    return False
+
+if not _valid_master_addr(os.environ.get("MASTER_ADDR")):
+  os.environ["MASTER_ADDR"] = "127.0.0.1"
+os.environ.setdefault("MASTER_PORT", "29500")
 
 if sys.platform == "win32":
   from ._utils import _load_dll_libraries

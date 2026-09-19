@@ -13,6 +13,7 @@ static std::vector<std::vector<StreamTimeline>> timeline; // [device][stream] ->
 
 double max_stream_time(int device){
   double t = 0;
+  if (device < 0) device = 0;
   if (device<timeline.size()){
     auto& d = timeline[device];
     for(auto& s : d){
@@ -30,7 +31,7 @@ static void ensure_size(int device, int stream) {
     timeline.resize(device + 1);
   }
   auto& d = timeline[device];
-  double stream_init_time = max_stream_time(device); //start new streams from the current device time
+  double stream_init_time = max_stream_time(device); //start new streams from the current device time. todo: revise, should be host time technically
   while(d.size()<=stream){
     d.push_back(StreamTimeline{stream_init_time, {}});
   }
@@ -38,12 +39,16 @@ static void ensure_size(int device, int stream) {
 
 double get_current_stream_time(int device, int stream) {
   std::lock_guard<std::mutex> lock(mutex_);
+  if (device < 0) device = 0;
+  if (stream < 0) stream = 0;
   ensure_size(device, stream);
   return timeline[device][stream].current_time;
 }
 
 void advance_current_stream_time(int device, int stream, double time) {
   std::lock_guard<std::mutex> lock(mutex_);
+  if (device < 0) device = 0;
+  if (stream < 0) stream = 0;
   ensure_size(device, stream);
   auto& t = timeline[device][stream];
   if (time > t.current_time) t.current_time = time;
@@ -51,6 +56,8 @@ void advance_current_stream_time(int device, int stream, double time) {
 
 void schedule_op_on_timeline(int device, int stream, std::string name, double duration) {
   std::lock_guard<std::mutex> lock(mutex_);
+  if (device < 0) device = 0;
+  if (stream < 0) stream = 0;
   ensure_size(device, stream);
   auto& t = timeline[device][stream];
   double start = t.current_time;

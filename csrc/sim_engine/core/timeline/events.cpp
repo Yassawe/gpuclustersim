@@ -24,6 +24,7 @@ void event_record(void** event, int device, int stream){
 
 
 void event_block(void* event, int device, int stream){
+  if (event==nullptr) return;
   auto e = static_cast<SimEvent*>(event);
   advance_current_stream_time(device, stream, e->timestamp);
 } 

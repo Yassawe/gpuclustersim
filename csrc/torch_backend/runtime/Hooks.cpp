@@ -2,6 +2,7 @@
 #include "Generator.h"
 #include "DeviceAllocator.h"
 #include "DeviceFunctions.h"
+#include <c10/core/StorageImpl.h>
 
 
 namespace c10::gpuclustersim {
@@ -43,6 +44,11 @@ const at::Generator& GCSHooksInterface::getDefaultGenerator(DeviceIndex device_i
 
 at::Generator GCSHooksInterface::getNewGenerator(DeviceIndex device_id) const {
   return at::make_generator<GCSGenerator>(device_id);
+}
+
+void GCSHooksInterface::resizePrivateUse1Bytes(const c10::Storage& storage, size_t newsize) const {
+  auto* impl = storage.unsafeGetStorageImpl(); // minimal stub required by FSDP to issue allgather
+  impl->set_nbytes(newsize);
 }
 
 

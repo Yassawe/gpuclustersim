@@ -101,6 +101,13 @@ def set_device(device):
     gpuclustersim._C._set_device(device)
 
 
+def _is_in_bad_fork():
+  return False
+
+def manual_seed_all(seed):
+  pass
+
+
 __all__ = [
   "is_available",
   "is_initialized",
@@ -115,5 +122,7 @@ __all__ = [
   "memory_summary",
   "device_count",
   "current_device",
-  "set_device"
+  "set_device",
+  "manual_seed_all",
+  "_is_in_bad_fork",
 ]

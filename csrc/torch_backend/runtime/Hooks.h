@@ -20,7 +20,7 @@ class GCSHooksInterface : public at::PrivateUse1HooksInterface {
   at::Device getDeviceFromPtr(void* data) const override;
   const at::Generator& getDefaultGenerator(DeviceIndex device_id) const override;
   at::Generator getNewGenerator(DeviceIndex device_id) const override;
-  virtual void resizePrivateUse1Bytes(const c10::Storage& storage, size_t newsize) const override {};
+  virtual void resizePrivateUse1Bytes(const c10::Storage& storage, size_t newsize) const override;
 
 };
 
